@@ -132,6 +132,7 @@ namespace PracticalCompiler
                 Parsers.Single<Token>(new Token.Symbol(Symbols.Type)).Fmap(_ => (Term)new Term.Universe(new Universes(0))),
                 Lambda(),
                 Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
+                NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
                 ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
                 Parsers.Single<Token>(new Token.Symbol(Symbols.Dot)).Continue(_ => Identifier().Fmap(name => (Term)new Term.Access(new MemberAccess(null, name)))),
                 Parsers.Single<Token>(new Token.Symbol(Symbols.TypeOf)).Continue(_ => SimpleTerm().Fmap(content => (Term)new Term.TypeOf(content))),
@@ -188,6 +189,11 @@ namespace PracticalCompiler
             return Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Identifier).Fmap(token => ((PracticalCompiler.Token.Identifier)token).Content);
         }
 
+        public static IParser<Token, uint> NumberLiteral()
+        {
+            return Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Number).Fmap(token => ((PracticalCompiler.Token.Number)token).Content);
+        }
+
         public static IParser<Token, string> ConstantString()
         {
             return Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Text).Fmap(token => ((PracticalCompiler.Token.Text)token).Content);
@@ -222,6 +228,7 @@ namespace PracticalCompiler
             var token = Parsers.Alternatives<char, Token>(
                 Word().Fmap(RecognizeKeywords).Satisfies(_ => _ != null),
                 Word().Fmap(word => (Token)new Token.Identifier(word)),
+                Number().Fmap(number => (Token)new Token.Number(number)),
                 Symbol().Fmap(RecognizeSymbols).Satisfies(_ => _ != null),
                 Symbol().Fmap(RecognizeOperators).Satisfies(_ => _ != null),
                 Bracket<Brackets>(Bracketing).Fmap(bracket => (Token)new Token.Bracket(bracket)),
@@ -366,6 +373,11 @@ namespace PracticalCompiler
         public static IParser<char, string> Word()
         {
             return Text(@char => Char.IsLetter(@char) || @char == '_');
+        }
+
+        public static IParser<char, uint> Number()
+        {
+            return Text(Char.IsDigit).Fmap(uint.Parse);
         }
 
         public static readonly string SymbolElements = "=*-/:;,.+!&~?|^%$#<>";

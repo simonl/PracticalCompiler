@@ -9,6 +9,7 @@ namespace PracticalCompiler
         Operator,
         Bracket,
         Text,
+        Number,
     }
 
     public enum Symbols
@@ -195,6 +196,36 @@ namespace PracticalCompiler
             public override int GetHashCode()
             {
                 return (Content != null ? Content.GetHashCode() : 0);
+            }
+        }
+
+        public sealed class Number : Token, IEquatable<Number>
+        {
+            public readonly uint Content;
+
+            public Number(uint content)
+                : base(Tokens.Number)
+            {
+                Content = content;
+            }
+
+            public bool Equals(Number other)
+            {
+                if (ReferenceEquals(null, other)) return false;
+                if (ReferenceEquals(this, other)) return true;
+                return Content == other.Content;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj)) return false;
+                if (ReferenceEquals(this, obj)) return true;
+                return obj is Number && Equals((Number) obj);
+            }
+
+            public override int GetHashCode()
+            {
+                return (int) Content;
             }
         }
     }

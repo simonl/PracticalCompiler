@@ -47,8 +47,6 @@ namespace PracticalCompiler
             var environment = (null as Environment<Classification<dynamic>>)
                 .Push("string", BaseType.ShiftDown<dynamic>(null))
                 .Push("int", BaseType.ShiftDown<dynamic>(null))
-                .Push("zero", intType.ShiftDown<dynamic>(0))
-                .Push("one", intType.ShiftDown<dynamic>(1))
                 .Push("plus", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x + y))))
                 .Push("times", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x * y))));
 

@@ -29,7 +29,7 @@ better import
 
     additive : monoid int;
     additive = new {
-        null = zero;
+        null = 0;
         join = plus;
     };
 
