@@ -23,15 +23,12 @@ namespace PracticalCompiler
         Import,
         Struct,
         New,
-    }
 
-    public enum Operators
-    {
         Arrow,
         HasType,
         SubType,
     }
-
+    
     public enum Brackets
     {
         Angle,
@@ -111,9 +108,9 @@ namespace PracticalCompiler
 
         public sealed class Operator : Token, IEquatable<Operator>
         {
-            public readonly Operators Content;
+            public readonly string Content;
 
-            public Operator(Operators content)
+            public Operator(string content)
                 : base(Tokens.Operator)
             {
                 Content = content;
@@ -135,7 +132,7 @@ namespace PracticalCompiler
 
             public override int GetHashCode()
             {
-                return (int) Content;
+                return (Content != null ? Content.GetHashCode() : 0);
             }
         }
 

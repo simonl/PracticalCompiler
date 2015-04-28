@@ -12,23 +12,6 @@ namespace PracticalCompiler
         }
     }
 
-    public sealed class Expression
-    {
-        public readonly Operators[] Operators;
-        public readonly Term[] Operands;
-
-        public Expression(Operators[] operators, Term[] operands)
-        {
-            if (operators.Length + 1 != operands.Length)
-            {
-                throw new ArgumentException("Operators take two arguments.");
-            }
-
-            Operators = operators;
-            Operands = operands;
-        }
-    }
-
     public sealed class Script
     {
         public readonly Element[] Bindings;

@@ -94,7 +94,7 @@ namespace PracticalCompiler
 
         public static IParser<Token, Term> Expression()
         {
-            return Separated(PrefixedTerm(), new Token.Operator(Operators.Arrow))
+            return Separated(PrefixedTerm(), new Token.Symbol(Symbols.Arrow))
                 .Fmap(components => components.ReduceRight((from, to) => new Term.Arrow(new ArrowType(from, to))))
                 .Continue(arrows => Expression().After(HasType()).Option()
                     .Fmap(annotation =>
@@ -190,7 +190,7 @@ namespace PracticalCompiler
 
         private static IParser<Token, Unit> HasType()
         {
-            return Parsers.Single<Token>(new Token.Operator(Operators.HasType));
+            return Parsers.Single<Token>(new Token.Symbol(Symbols.HasType));
         }
 
         public static IParser<Token, string> Identifier()
@@ -220,7 +220,7 @@ namespace PracticalCompiler
         private static IParser<Token, Declaration> Parameter()
         {
             var annotated = Identifier()
-                .Continue(identifier => Parsers.Single<Token>(new Token.Operator(Operators.HasType))
+                .Continue(identifier => Parsers.Single<Token>(new Token.Symbol(Symbols.HasType))
                     .Continue(hastype => Expression()
                         .Continue(type => Parsers.Returns<Token, Declaration>(new Declaration(new Option<Term>.Some(type), identifier)))))
                 .Between(Brackets.Round);
@@ -239,7 +239,7 @@ namespace PracticalCompiler
                 Word().Fmap(word => (Token)new Token.Identifier(word)),
                 Number().Fmap(number => (Token)new Token.Number(number)),
                 Symbol().Fmap(RecognizeSymbols).Satisfies(_ => _ != null),
-                Symbol().Fmap(RecognizeOperators).Satisfies(_ => _ != null),
+                Symbol().Fmap(symbol => (Token)new Token.Operator(symbol)),
                 Bracket<Brackets>(Bracketing).Fmap(bracket => (Token)new Token.Bracket(bracket)),
                 String().Fmap(text => (Token)new Token.Text(text)));
 
@@ -267,17 +267,9 @@ namespace PracticalCompiler
                 case ".": return new Token.Symbol(Symbols.Dot);
                 case "=": return new Token.Symbol(Symbols.Equals);
                 case ";": return new Token.Symbol(Symbols.EndElement);
-                default: return null;
-            }
-        }
-
-        public static Token RecognizeOperators(string symbol)
-        {
-            switch (symbol)
-            {
-                case ":": return new Token.Operator(Operators.HasType);
-                case "->": return new Token.Operator(Operators.Arrow);
-                case "<:": return new Token.Operator(Operators.SubType);
+                case ":": return new Token.Symbol(Symbols.HasType);
+                case "->": return new Token.Symbol(Symbols.Arrow);
+                case "<:": return new Token.Symbol(Symbols.SubType);
                 default: return null;
             }
         }
