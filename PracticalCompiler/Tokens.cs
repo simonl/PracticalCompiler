@@ -23,6 +23,7 @@ namespace PracticalCompiler
         Import,
         Struct,
         New,
+        Let,
 
         Arrow,
         HasType,

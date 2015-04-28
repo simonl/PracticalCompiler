@@ -10,6 +10,15 @@ namespace PracticalCompiler
         {
             return Script().Fmap(LetBindings);
         }
+        
+        public static IParser<Token, Statement> CommandLine()
+        {
+            var command = Parsers.Alternatives<Token, Statement>(
+                ProgramParsing.Let().Continue(_ => Element()),
+                Expression().Fmap(_ => new Statement(null, new Option<Term>.None(), new Option<Term>.Some(_))));
+            
+            return command.Fmap(element => element.Content);
+        }
 
         public static Term LetBindings(Script script)
         {
@@ -166,6 +175,11 @@ namespace PracticalCompiler
             });
         }
 
+        private static IParser<Token, Unit> Let()
+        {
+            return Parsers.Single<Token>(new Token.Symbol(Symbols.Let));
+        } 
+
         private static IParser<Token, Unit> EndElement()
         {
             return Parsers.Single<Token>(new Token.Symbol(Symbols.EndElement));
@@ -244,6 +258,7 @@ namespace PracticalCompiler
                 case "struct": return new Token.Symbol(Symbols.Struct);
                 case "type": return new Token.Symbol(Symbols.Type);
                 case "new": return new Token.Symbol(Symbols.New);
+                case "let": return new Token.Symbol(Symbols.Let);
                 default: return null;
             }
         }

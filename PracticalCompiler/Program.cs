@@ -52,14 +52,14 @@ namespace PracticalCompiler
 
             var prelude = new string[]
             {
-                "import \"Main.fun\""
+                "let main = import \"Main.fun\""
             };
 
             foreach (var line in prelude)
             {
                 Console.Write("> ");
                 Console.WriteLine(line);
-                Handle(environment, line);
+                Handle(ref environment, line);
             }
 
             while (true)
@@ -79,17 +79,17 @@ namespace PracticalCompiler
                     return;
                 }
 
-                Handle(environment, line);
+                Handle(ref environment, line);
             }
         }
 
-        private static void Handle(Environment<Classification<dynamic>> environment, string line)
+        private static void Handle(ref Environment<Classification<dynamic>> environment, string line)
         {
             try
             {
-                var result = Execute(environment, line);
+                var result = Interpret(ref environment, line);
 
-                Console.WriteLine("it = " + result.Term);
+                Console.WriteLine(result.Term);
             }
             catch (Exception ex)
             {
@@ -98,11 +98,38 @@ namespace PracticalCompiler
             }
         }
 
-        private static Classification<dynamic> Import(Environment<Classification<dynamic>> environment, string filename)
+        private static Classification<dynamic> Interpret(ref Environment<Classification<dynamic>> environment, string line)
         {
-            var program = File.ReadAllText(filename);
+            var tokens = ProgramParsing.Separated(ProgramParsing.Token()).ParseCompletely(line.ToStream());
 
-            return Execute(environment, program);
+            var command = ProgramParsing.CommandLine().ParseCompletely(tokens.ToStream());
+
+            foreach (var defun in command.Definition.Each())
+            {
+                var term = defun;
+                foreach (var type in command.Declaration.Each())
+                {
+                    term = new Term.Annotation(new Annotated(type, term));
+                }
+
+                var typed = Execute(environment, term);
+
+                if (command.Identifier != null)
+                {
+                    if (environment.Maps(command.Identifier))
+                    {
+                        Console.WriteLine("Shadowing is not allowed!");
+                    }
+                    else
+                    {
+                        environment = environment.Push(command.Identifier, typed);
+                    }
+                }
+
+                return typed;
+            }
+
+            throw new ArgumentException("Command line must include evaluable expression.");
         }
 
         private static Classification<dynamic> Execute(Environment<Classification<dynamic>> environment, string program)
@@ -111,6 +138,11 @@ namespace PracticalCompiler
 
             var term = ProgramParsing.CompilationUnit().ParseCompletely(tokens.ToStream());
 
+            return Execute(environment, term);
+        }
+
+        private static Classification<dynamic> Execute(Environment<Classification<dynamic>> environment, Term term)
+        {
             var substitution = environment.Fmap(expr => expr.Fmap<dynamic, TypedTerm>(_ => _ == null ? null : new TypedTerm.Constant(_)));
 
             var typed = TypeChecking.InferType(file => Import(environment, file), substitution, term);
@@ -118,6 +150,13 @@ namespace PracticalCompiler
             var result = Evaluate(environment.Fmap(expr => expr.Term), typed);
 
             return typed.Fmap(_ => result);
+        }
+
+        private static Classification<dynamic> Import(Environment<Classification<dynamic>> environment, string filename)
+        {
+            var program = File.ReadAllText(filename);
+
+            return Execute(environment, program);
         }
 
         public static Classification<TypedTerm> BaseType
