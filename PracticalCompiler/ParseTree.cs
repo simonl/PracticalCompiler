@@ -14,51 +14,13 @@ namespace PracticalCompiler
 
     public sealed class Script
     {
-        public readonly Element[] Bindings;
+        public readonly Statement[] Bindings;
         public readonly Term Body;
 
-        public Script(Element[] bindings, Term body)
+        public Script(Statement[] bindings, Term body)
         {
             Bindings = bindings;
             Body = body;
-        }
-    }
-
-    public enum Elements
-    {
-        Declaration,
-        Definition,
-    }
-
-    public abstract class Element
-    {
-        public readonly Elements Tag;
-
-        private Element(Elements tag)
-        {
-            Tag = tag;
-        }
-
-        public sealed class Declaration : Element
-        {
-            public readonly PracticalCompiler.Declaration Content;
-
-            public Declaration(PracticalCompiler.Declaration content)
-                : base(Elements.Declaration)
-            {
-                Content = content;
-            }
-        }
-
-        public sealed class Definition : Element
-        {
-            public readonly PracticalCompiler.Definition Content;
-
-            public Definition(PracticalCompiler.Definition content)
-                : base(Elements.Definition)
-            {
-                Content = content;
-            }
         }
     }
 
@@ -71,6 +33,20 @@ namespace PracticalCompiler
         {
             Identifier = identifier;
             Body = body;
+        }
+    }
+
+    public sealed class Statement
+    {
+        public readonly string Identifier;
+        public readonly Option<Term> Declaration;
+        public readonly Option<Term> Definition;
+
+        public Statement(string identifier, Option<Term> declaration, Option<Term> definition)
+        {
+            Identifier = identifier;
+            Declaration = declaration;
+            Definition = definition;
         }
     }
 }

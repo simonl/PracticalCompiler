@@ -18,7 +18,7 @@ namespace PracticalCompiler
             return definitions.ReduceRight(script.Body, merge: (@def, body) => new Term.LetBinding(@def, body));
         }
 
-        private static Definition[] AccumulateDefinitions(Element[] bindings)
+        private static Definition[] AccumulateDefinitions(Statement[] bindings)
         {
             var declarations = new Dictionary<string, Term>(bindings.Length);
 
@@ -26,41 +26,32 @@ namespace PracticalCompiler
 
             foreach (var element in bindings)
             {
-                switch (element.Tag)
+                foreach (var type in element.Declaration.Each())
                 {
-                    case Elements.Declaration:
-                        var declaration = (PracticalCompiler.Element.Declaration) element;
+                    declarations.Add(element.Identifier, type);
+                }
 
-                        foreach (var type in declaration.Content.Type.Each())
-                        {
-                            declarations.Add(declaration.Content.Identifier, type);
-                        }
+                foreach (var term in element.Definition.Each())
+                {
+                    var identifier = element.Identifier;
 
-                        break;
-                    case Elements.Definition:
-                        var definition = (PracticalCompiler.Element.Definition) element;
+                    if (declarations.ContainsKey(identifier))
+                    {
+                        var declared = declarations[identifier];
 
-                        var identifier = definition.Content.Identifier;
+                        declarations.Remove(identifier);
 
-                        if (declarations.ContainsKey(identifier))
-                        {
-                            var declared = declarations[identifier];
+                        var body = new Term.Annotation(new Annotated(declared, term));
 
-                            declarations.Remove(identifier);
-
-                            var body = new Term.Annotation(new Annotated(declared, definition.Content.Body));
-
-                            definitions.Add(new Definition(identifier, body));
-                        }
-                        else
-                        {
-                            definitions.Add(definition.Content);
-                        }
-                        break;
-                    default:
-                        throw new InvalidProgramException("Should never happen.");
+                        definitions.Add(new Definition(identifier, body));
+                    }
+                    else
+                    {
+                        definitions.Add(new Definition(identifier, term));
+                    }
                 }
             }
+
             return definitions.ToArray();
         }
 
@@ -73,23 +64,15 @@ namespace PracticalCompiler
                     Parsers.Returns<Token, Script>(new Script(bindings, body))));
         }
 
-        public static IParser<Token, Element> Element()
+        public static IParser<Token, Statement> Element()
         {
-            var declaration = Identifier().Continue(identifier =>
-                HasType().Continue(hastype =>
-                    Expression().Continue(type => 
-                        Parsers.Returns<Token, Declaration>(new Declaration(new Option<Term>.Some(type), identifier)))));
+            var declaration = HasType().Continue(_ => Expression()).Option();
 
-            var definition = Identifier().Continue(identifier =>
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Equals)).Continue(equals =>
-                    Expression().Continue(body => 
-                        Parsers.Returns<Token, Definition>(new Definition(identifier, body)))));
+            var definition = EqualSign().Continue(_ => Expression()).Option();
 
-            var alternatives = Parsers.Alternatives<Token, Element>(
-                declaration.Fmap(decl => (Element)new Element.Declaration(decl)),
-                definition.Fmap(@def => (Element)new Element.Definition(@def)));
-
-            return alternatives.Fmap(element => element.Content);
+            return Identifier().Continue(identifier =>
+                declaration.Continue(type => 
+                definition.Continue(term => Parsers.Returns<Token, Statement>(new Statement(identifier, type, term)))));
         }
 
         public static IParser<Token, Term> Expression()
@@ -186,6 +169,11 @@ namespace PracticalCompiler
         private static IParser<Token, Unit> EndElement()
         {
             return Parsers.Single<Token>(new Token.Symbol(Symbols.EndElement));
+        }
+
+        private static IParser<Token, Unit> EqualSign()
+        {
+            return Parsers.Single<Token>(new Token.Symbol(Symbols.Equals));
         }
 
         private static IParser<Token, Unit> HasType()
