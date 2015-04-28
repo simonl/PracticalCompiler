@@ -94,7 +94,7 @@ namespace PracticalCompiler
 
         public static IParser<Token, Term> Expression()
         {
-            return Separated(Term(), new Token.Operator(Operators.Arrow))
+            return Separated(PrefixedTerm(), new Token.Operator(Operators.Arrow))
                 .Fmap(components => components.ReduceRight((from, to) => new Term.Arrow(new ArrowType(from, to))))
                 .Continue(arrows => Expression().After(HasType()).Option()
                     .Fmap(annotation =>
@@ -108,6 +108,34 @@ namespace PracticalCompiler
                     }));
         }
 
+        public static IParser<Token, Term> PrefixedTerm()
+        {
+            var term = Parsers.Alternatives<Token, Term>(
+                Lambda(),
+                Parsers.Single<Token>(new Token.Symbol(Symbols.TypeOf)).Continue(_ => SimpleTerm().Fmap(content => (Term)new Term.TypeOf(content))),
+                Parsers.Single<Token>(new Token.Symbol(Symbols.Import)).Continue(_ => ConstantString().Fmap(filename => (Term)new Term.Import(filename))),
+                Parsers.Single<Token>(new Token.Symbol(Symbols.Struct)).Continue(_ => StructType().Between(Brackets.Curly).Fmap(members => (Term)new Term.Module(members))),
+                Parsers.Single<Token>(new Token.Symbol(Symbols.New)).Continue(_ => NewStruct()),
+                Term()
+            );
+
+            return term.Fmap(element => element.Content);
+        }
+
+        public static IParser<Token, Term> SimpleTerm()
+        {
+            var term = Parsers.Alternatives<Token, Term>(
+                Parsers.Single<Token>(new Token.Symbol(Symbols.Type)).Fmap(_ => (Term)new Term.Universe(new Universes(0))),
+                Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
+                NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
+                ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
+                Parsers.Single<Token>(new Token.Symbol(Symbols.Dot)).Continue(_ => Identifier().Fmap(name => (Term)new Term.Access(new MemberAccess(null, name)))),
+                Parsers.Delay(() => Between(Expression(), Brackets.Round))
+            );
+
+            return term.Fmap(element => element.Content);
+        }
+        
         public static IParser<Token, Term> Term()
         {
             return SimpleTerm().Some().Fmap(components => components.ReduceLeft((@operator, argument) =>
@@ -124,25 +152,6 @@ namespace PracticalCompiler
 
                 return new Term.Apply(new FunctionApply(@operator, argument));
             }));
-        }
-
-        public static IParser<Token, Term> SimpleTerm()
-        {
-            var term = Parsers.Alternatives<Token, Term>(
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Type)).Fmap(_ => (Term)new Term.Universe(new Universes(0))),
-                Lambda(),
-                Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
-                NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
-                ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Dot)).Continue(_ => Identifier().Fmap(name => (Term)new Term.Access(new MemberAccess(null, name)))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.TypeOf)).Continue(_ => SimpleTerm().Fmap(content => (Term)new Term.TypeOf(content))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Import)).Continue(_ => ConstantString().Fmap(filename => (Term)new Term.Import(filename))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Struct)).Continue(_ => StructType().Between(Brackets.Curly).Fmap(members => (Term)new Term.Module(members))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.New)).Continue(_ => NewStruct()),
-                Parsers.Delay(() => Between(Expression(), Brackets.Round))
-            );
-
-            return term.Fmap(element => element.Content);
         }
 
         public static IParser<Token, ModuleType> StructType()

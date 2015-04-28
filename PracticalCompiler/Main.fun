@@ -39,6 +39,9 @@ better import
         y : int;
     };
 
+    unit : type;
+    unit = struct { };
+
     top : type;
     top = struct {
         a : type;
@@ -46,11 +49,11 @@ better import
     };
 
     high : top;
-    high = new {
-        a = int;
-        x = lib .four;
-    };
+    high = new { a = int; x = 0; };
 
+    peak : top;
+    peak = new { a = string; x = ""; };
+    
     /*
 	bottom : type;
 	bottom = forall (a:type). a;
@@ -95,8 +98,8 @@ better import
     //hello : string;
     hello = "Hello, World!";
 
-    high .x
-    //lib .return (length origin)
+    //high .x
+    lib .return (length origin)
 	//times (identity four) (identity (plus four one))
 	//hello
 	

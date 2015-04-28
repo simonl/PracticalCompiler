@@ -59,7 +59,7 @@ namespace PracticalCompiler
             {
                 Console.Write("> ");
                 Console.WriteLine(line);
-                Handle(environment, "import \"Main.fun\"");
+                Handle(environment, line);
             }
 
             while (true)
