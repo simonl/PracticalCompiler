@@ -15,6 +15,7 @@ namespace PracticalCompiler
         New,
         Access,
 
+        Generic,
         Variable,
         Annotation,
         LetBinding,
@@ -36,11 +37,13 @@ namespace PracticalCompiler
     public sealed class ArrowType
     {
         public readonly Term From;
+        public readonly Option<string> Identifier;
         public readonly Term To;
 
-        public ArrowType(Term @from, Term to)
+        public ArrowType(Term @from, Option<string> identifier, Term to)
         {
             From = @from;
+            Identifier = identifier;
             To = to;
         }
     }
@@ -206,6 +209,17 @@ namespace PracticalCompiler
 
             public Access(MemberAccess content)
                 : base(Productions.Access)
+            {
+                Content = content;
+            }
+        }
+
+        public sealed class Generic : Term
+        {
+            public readonly Declaration Content;
+
+            public Generic(Declaration content)
+                : base(Productions.Generic)
             {
                 Content = content;
             }

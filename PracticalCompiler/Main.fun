@@ -1,6 +1,7 @@
 
 /*
 TODO:
+forall
 handle scoping of struct fields correctly
 normalize types/at least substitute typedefs
 module path in types
@@ -16,8 +17,8 @@ better import
 /*
 	monad : (type -> type) -> type;
 	monad m = struct {
-		lift : forall (a:type). a -> m a;
-		join : forall (a:type). m (m a) -> m a;
+		lift : [a] -> a -> m a;
+		join : [a] -> m (m a) -> m a;
 	};
 */
 
@@ -56,9 +57,9 @@ better import
     
     /*
 	bottom : type;
-	bottom = forall (a:type). a;
+	bottom = [a] -> a;
 
-	identity : forall (a:type). a -> a;
+	identity : [a] -> a -> a;
 	identity = lambda a. lambda x. x;
 
 	null = new top {

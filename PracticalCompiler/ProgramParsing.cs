@@ -14,7 +14,7 @@ namespace PracticalCompiler
         public static IParser<Token, Statement> CommandLine()
         {
             var command = Parsers.Alternatives<Token, Statement>(
-                ProgramParsing.Let().Continue(_ => Element()),
+                Literal(Symbols.Let).Continue(_ => Element()),
                 Expression().Fmap(_ => new Statement(null, new Option<Term>.None(), new Option<Term>.Some(_))));
             
             return command.Fmap(element => element.Content);
@@ -66,7 +66,7 @@ namespace PracticalCompiler
 
         public static IParser<Token, Script> Script()
         {
-            var elements = Element().Before(EndElement()).Repeat();
+            var elements = Element().Before(Literal(Symbols.Separator)).Repeat();
 
             return elements.Continue(bindings =>
                 Expression().Continue(body => 
@@ -75,9 +75,9 @@ namespace PracticalCompiler
 
         public static IParser<Token, Statement> Element()
         {
-            var declaration = HasType().Continue(_ => Expression()).Option();
+            var declaration = Literal(Symbols.HasType).Continue(_ => Expression()).Option();
 
-            var definition = EqualSign().Continue(_ => Expression()).Option();
+            var definition = Literal(Symbols.Equals).Continue(_ => Expression()).Option();
 
             return Identifier().Continue(identifier =>
                 declaration.Continue(type => 
@@ -87,8 +87,8 @@ namespace PracticalCompiler
         public static IParser<Token, Term> Expression()
         {
             return Separated(PrefixedTerm(), new Token.Symbol(Symbols.Arrow))
-                .Fmap(components => components.ReduceRight((from, to) => new Term.Arrow(new ArrowType(from, to))))
-                .Continue(arrows => Expression().After(HasType()).Option()
+                .Fmap(components => components.ReduceRight(MergeArrowComponents))
+                .Continue(arrows => Expression().After(Literal(Symbols.HasType)).Option()
                     .Fmap(annotation =>
                     {
                         foreach (var type in annotation.Each())
@@ -100,29 +100,34 @@ namespace PracticalCompiler
                     }));
         }
 
+        private static Term MergeArrowComponents(Term @from, Term to)
+        {
+            if (@from.Tag == Productions.Generic)
+            {
+                var generic = (Term.Generic) @from;
+
+                var type = generic.Content.Type.Or(DefaultGenericType);
+
+                return new Term.Arrow(new ArrowType(type, new Option<string>.Some(generic.Content.Identifier), to));
+            }
+
+            return new Term.Arrow(new ArrowType(@from, new Option<string>.None(), to));
+        }
+
+        private static Term.Universe DefaultGenericType
+        {
+            get { return new Term.Universe(new Universes(0)); }
+        }
+
         public static IParser<Token, Term> PrefixedTerm()
         {
             var term = Parsers.Alternatives<Token, Term>(
                 Lambda(),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.TypeOf)).Continue(_ => SimpleTerm().Fmap(content => (Term)new Term.TypeOf(content))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Import)).Continue(_ => ConstantString().Fmap(filename => (Term)new Term.Import(filename))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Struct)).Continue(_ => StructType().Between(Brackets.Curly).Fmap(members => (Term)new Term.Module(members))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.New)).Continue(_ => NewStruct()),
+                Literal(Symbols.TypeOf).Continue(_ => SimpleTerm().Fmap(content => (Term)new Term.TypeOf(content))),
+                Literal(Symbols.Import).Continue(_ => ConstantString().Fmap(filename => (Term)new Term.Import(filename))),
+                Literal(Symbols.Struct).Continue(_ => StructType().Between(Brackets.Curly).Fmap(members => (Term)new Term.Module(members))),
+                Literal(Symbols.New).Continue(_ => NewStruct()),
                 Term()
-            );
-
-            return term.Fmap(element => element.Content);
-        }
-
-        public static IParser<Token, Term> SimpleTerm()
-        {
-            var term = Parsers.Alternatives<Token, Term>(
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Type)).Fmap(_ => (Term)new Term.Universe(new Universes(0))),
-                Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
-                NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
-                ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
-                Parsers.Single<Token>(new Token.Symbol(Symbols.Dot)).Continue(_ => Identifier().Fmap(name => (Term)new Term.Access(new MemberAccess(null, name)))),
-                Parsers.Delay(() => Between(Expression(), Brackets.Round))
             );
 
             return term.Fmap(element => element.Content);
@@ -146,12 +151,27 @@ namespace PracticalCompiler
             }));
         }
 
+        public static IParser<Token, Term> SimpleTerm()
+        {
+            var term = Parsers.Alternatives<Token, Term>(
+                Generic(),
+                Literal(Symbols.Type).Fmap(_ => (Term)new Term.Universe(new Universes(0))),
+                Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
+                NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
+                ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
+                Literal(Symbols.Dot).Continue(_ => Identifier().Fmap(name => (Term)new Term.Access(new MemberAccess(null, name)))),
+                Parsers.Delay(() => Between(Expression(), Brackets.Round))
+            );
+
+            return term.Fmap(element => element.Content);
+        }
+
         public static IParser<Token, ModuleType> StructType()
         {
             var member = Identifier().Continue(name =>
-                HasType().Continue(colon => 
+                Literal(Symbols.HasType).Continue(colon => 
                     Expression().Continue(type =>
-                        EndElement().Fmap(semicolon => 
+                        Literal(Symbols.Separator).Fmap(semicolon => 
                             new KeyValuePair<string, Term>(name, type)))));
 
             return member.Repeat().Fmap(members => new ModuleType(members));
@@ -159,7 +179,7 @@ namespace PracticalCompiler
 
         public static IParser<Token, Term> NewStruct()
         {
-            var elements = Element().Before(EndElement()).Repeat();
+            var elements = Element().Before(Literal(Symbols.Separator)).Repeat();
 
             var @new = elements.Between(Brackets.Curly)
                 .Fmap(bindings => (Term)new Term.New(new NewStruct(AccumulateDefinitions(bindings))));
@@ -175,24 +195,9 @@ namespace PracticalCompiler
             });
         }
 
-        private static IParser<Token, Unit> Let()
+        private static IParser<Token, Unit> Literal(Symbols symbol)
         {
-            return Parsers.Single<Token>(new Token.Symbol(Symbols.Let));
-        } 
-
-        private static IParser<Token, Unit> EndElement()
-        {
-            return Parsers.Single<Token>(new Token.Symbol(Symbols.EndElement));
-        }
-
-        private static IParser<Token, Unit> EqualSign()
-        {
-            return Parsers.Single<Token>(new Token.Symbol(Symbols.Equals));
-        }
-
-        private static IParser<Token, Unit> HasType()
-        {
-            return Parsers.Single<Token>(new Token.Symbol(Symbols.HasType));
+            return Parsers.Single<Token>(new Token.Symbol(symbol));
         }
 
         public static IParser<Token, string> Identifier()
@@ -210,28 +215,55 @@ namespace PracticalCompiler
             return Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Text).Fmap(token => ((PracticalCompiler.Token.Text)token).Content);
         }
 
+        public static IParser<Token, Term> Generic()
+        {
+            return Identifier()
+                .Continue(parameter => Literal(Symbols.HasType).Continue(_ => Expression()).Option().Continue(type => 
+                Parsers.Returns<Token, Term>(new Term.Generic(new Declaration(type, parameter)))))
+                .Between(Brackets.Square);
+        }
+
         public static IParser<Token, Term> Lambda()
         {
-            return Parsers.Single<Token>(new Token.Symbol(Symbols.Lambda))
+            return Literal(Symbols.Lambda)
                 .Continue(lambda => Parameter()
-                    .Continue(parameter => Parsers.Single<Token>(new Token.Symbol(Symbols.Dot))
+                    .Continue(parameter => Literal(Symbols.Dot)
                         .Continue(tobody => Expression()
                             .Continue(body => Parsers.Returns<Token, Term>(new Term.Lambda(new LambdaTerm(parameter, body)))))));
         }
 
         private static IParser<Token, Declaration> Parameter()
         {
-            var annotated = Identifier()
-                .Continue(identifier => Parsers.Single<Token>(new Token.Symbol(Symbols.HasType))
-                    .Continue(hastype => Expression()
-                        .Continue(type => Parsers.Returns<Token, Declaration>(new Declaration(new Option<Term>.Some(type), identifier)))))
-                .Between(Brackets.Round);
+            return SimpleTerm().Continue(term =>
+            {
+                Option<Term> type = new Option<Term>.None();
+                if (term.Tag == Productions.Generic)
+                {
+                    var generic = (Term.Generic) term;
 
-            var bare = Identifier()
-                .Fmap(identifier => new Declaration(new Option<Term>.None(), identifier));
+                    type = new Option<Term>.Some(generic.Content.Type.Or(DefaultGenericType));
 
-            return Parsers.Alternatives(annotated, bare)
-                .Fmap(element => element.Content);
+                    term = new Term.Variable(generic.Content.Identifier);
+                }
+
+                if (term.Tag == Productions.Annotation)
+                {
+                    var annotation = (Term.Annotation) term;
+
+                    type = new Option<Term>.Some(annotation.Content.Type);
+
+                    term = annotation.Content.Term;
+                }
+
+                if (term.Tag == Productions.Variable)
+                {
+                    var variable = (Term.Variable) term;
+
+                    return Parsers.Returns<Token, Declaration>(new Declaration(type, variable.Content));
+                }
+
+                return Parsers.Fails<Token, Declaration>(new ArgumentException("Parameter should be a variable declaration."));
+            });
         }
 
         public static IParser<char, Token> Token()
@@ -269,7 +301,7 @@ namespace PracticalCompiler
             {
                 case ".": return new Token.Symbol(Symbols.Dot);
                 case "=": return new Token.Symbol(Symbols.Equals);
-                case ";": return new Token.Symbol(Symbols.EndElement);
+                case ";": return new Token.Symbol(Symbols.Separator);
                 case ":": return new Token.Symbol(Symbols.HasType);
                 case "->": return new Token.Symbol(Symbols.Arrow);
                 case "<:": return new Token.Symbol(Symbols.SubType);

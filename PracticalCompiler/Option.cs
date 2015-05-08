@@ -42,6 +42,16 @@ namespace PracticalCompiler
 
     public static class Options
     {
+        public static T Or<T>(this Option<T> option, T @default)
+        {
+            foreach (var element in option.Each())
+            {
+                return element;
+            }
+
+            return @default;
+        }
+
         public static IEnumerable<T> Each<T>(this Option<T> option)
         {
             switch (option.Tag)

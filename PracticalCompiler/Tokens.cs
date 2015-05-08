@@ -15,15 +15,16 @@ namespace PracticalCompiler
     public enum Symbols
     {
         Type,
-        Lambda,
-        Dot,
-        EndElement,
-        Equals,
         TypeOf,
         Import,
         Struct,
         New,
         Let,
+        Lambda,
+        
+        Dot,
+        Equals,
+        Separator,
 
         Arrow,
         HasType,

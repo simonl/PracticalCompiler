@@ -42,6 +42,11 @@ namespace PracticalCompiler
 
     public static class Responses
     {
+        public static Response<T> Succeed<T>(this T instance)
+        {
+            return new Response<T>.Success(instance);
+        }
+
         public static bool Throws<T>(this Response<T> response)
         {
             switch (response.Tag)
