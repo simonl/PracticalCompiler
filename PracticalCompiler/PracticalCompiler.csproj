@@ -48,6 +48,7 @@
     <Compile Include="Environment.cs" />
     <Compile Include="IBracket.cs" />
     <Compile Include="IElement.cs" />
+    <Compile Include="IEventual.cs" />
     <Compile Include="IParser.cs" />
     <Compile Include="IStream.cs" />
     <Compile Include="Generic\Operations.cs" />
