@@ -4,34 +4,14 @@ namespace PracticalCompiler
 {
     public interface IParser<S, T>
     {
-        Response<IParsed<S, T>> Parse(IStream<S> stream);
+        IEventual<Response<IParsed<S, T>>> Parse(IStream<S> stream);
     }
 
     public sealed class Parser<S, T> : IParser<S, T>
     {
-        private readonly Func<IStream<S>, Response<IParsed<S, T>>> ParseF;
-
-        public Parser(Func<IStream<S>, Response<IParsed<S, T>>> parseF)
-        {
-            ParseF = parseF;
-        }
-
-        public Response<IParsed<S, T>> Parse(IStream<S> stream)
-        {
-            return this.ParseF(stream);
-        }
-    }
-    
-    public interface IParserG<S, T>
-    {
-        IEventual<Response<IParsed<S, T>>> Parse(IStream<S> stream);
-    }
-
-    public sealed class ParserG<S, T> : IParserG<S, T>
-    {
         private readonly Func<IStream<S>, IEventual<Response<IParsed<S, T>>>> ParseF;
 
-        public ParserG(Func<IStream<S>, IEventual<Response<IParsed<S, T>>>> parseF)
+        public Parser(Func<IStream<S>, IEventual<Response<IParsed<S, T>>>> parseF)
         {
             ParseF = parseF;
         }
@@ -41,7 +21,7 @@ namespace PracticalCompiler
             return this.ParseF(stream);
         }
     }
-
+    
     public interface IParsed<S, out T>
     {
         T Content { get; }

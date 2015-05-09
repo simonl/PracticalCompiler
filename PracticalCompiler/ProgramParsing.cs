@@ -16,7 +16,7 @@ namespace PracticalCompiler
                         return new Step<T>.Empty();
                     }
 
-                    var result = parser.Parse(stream).Throw();
+                    var result = parser.Parse(stream).Wait().Throw();
 
                     return new Step<T>.Node(result.Content, Many<S, T>(parser, result.Stream));
                 });

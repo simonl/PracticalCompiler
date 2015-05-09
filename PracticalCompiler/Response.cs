@@ -47,6 +47,11 @@ namespace PracticalCompiler
             return new Response<T>.Success(instance);
         }
 
+        public static Response<T> Fail<T>(this string error)
+        {
+            return new Response<T>.Failure(error);
+        }
+
         public static bool Throws<T>(this Response<T> response)
         {
             switch (response.Tag)

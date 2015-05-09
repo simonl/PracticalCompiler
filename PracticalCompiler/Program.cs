@@ -22,8 +22,8 @@ namespace PracticalCompiler
         public static void Main(string[] args)
         {
             //InteractiveMain(args);
-            //PerformanceMain(args);
-            StackMain(args);
+            PerformanceMain(args);
+            //StackMain(args);
         }
 
         private static void UntypedMain(string[] args)
@@ -59,9 +59,9 @@ namespace PracticalCompiler
 
         public static void StackMain(string[] args)
         {
-            for (int i = 0; i < 5000; i++)
+            for (int i = 0; i < 500; i++)
             {
-                uint count = 1000;
+                uint count = 10000;
 
                 var stream = 'a'.Repeat(count).ToStream();
                 var parser = Parsers.Take<char>().Repeating(count);
