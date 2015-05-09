@@ -64,7 +64,7 @@ namespace PracticalCompiler
                 uint count = 10000;
 
                 var stream = 'a'.Repeat(count).ToStream();
-                var parser = Parsers.Take<char>().Repeating(count);
+                var parser = Parsers.Sequence(Parsers.Take<char>().Repeat(count));
 
                 uint jumps;
                 var result = parser.Parse(stream).Wait(out jumps).Throw();

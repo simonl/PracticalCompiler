@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 
 namespace PracticalCompiler
 {
@@ -31,65 +32,33 @@ namespace PracticalCompiler
 
         public static IParser<S, S> Peek<S>()
         {
-            return new Parser<S, S>(
-                parseF: stream =>
+            return Peeks<S>().Continue(
+                generate: leading =>
                 {
-                    var step = stream.Unroll();
-
-                    switch (step.Tag)
+                    if (leading.Length == 0)
                     {
-                        case Step.Empty:
-
-                            return "End of stream.".Fail<IParsed<S, S>>().Now();
-                        case Step.Node:
-                            var node = (Step<S>.Node) step;
-
-                            IParsed<S, S> result = new Parsed<S, S>(node.Head, stream);
-
-                            return result.Succeed().Now();
-                        default:
-                            throw new InvalidProgramException("Should never happen.");
+                        return Fails<S, S>("End of stream.");
                     }
+
+                    return Returns<S, S>(leading[0]);
                 });
         }
         
         public static IParser<S, S[]> Peeks<S>(int lookahead = 1)
         {
-            return new Parser<S, S[]>(
+            return Peek<S, S[]>(lookahead: stream => stream.AsEnumerable().Take(lookahead).ToArray());
+        }
+
+        public static IParser<S, T> Peek<S, T>(Func<IStream<S>, T> lookahead)
+        {
+            return new Parser<S, T>(
                 parseF: stream =>
                 {
-                    var leading = new List<S>(lookahead);
+                    var result = lookahead(stream);
+                    
+                    IParsed<S, T> parsed = new Parsed<S, T>(result, stream);
 
-                    var tail = stream;
-                    var count = lookahead;
-                    while (count != 0)
-                    {
-                        count--;
-                        
-                        var step = tail.Unroll();
-
-                        switch (step.Tag)
-                        {
-                            case Step.Empty:
-
-                                count = 0;
-
-                                break;
-                            case Step.Node:
-                                var node = (Step<S>.Node) step;
-
-                                leading.Add(node.Head);
-                                tail = node.Tail;
-
-                                break;
-                            default:
-                                throw new InvalidProgramException("Should never happen.");
-                        }
-                    }
-
-                    IParsed<S, S[]> result = new Parsed<S, S[]>(leading.ToArray(), stream);
-
-                    return result.Succeed().Now();
+                    return parsed.Succeed().Now();
                 });
         }
 
@@ -203,45 +172,56 @@ namespace PracticalCompiler
                             throw new ArgumentOutOfRangeException();
                     }
                 });
+        }
+
+        public static IParser<S, B> AndThen<S, B>(this IParser<S, Unit> first, IParser<S, B> second)
+        {
+            return first.Continue(_ => second);
         } 
 
-        public static IParser<S, T> Alternatives<S, T>(params IParser<S, T>[] parsers)
+        public static IParser<S, T> OrElse<S, T>(this IParser<S, T> first, IParser<S, T> second)
         {
             return new Parser<S, T>(
                 parseF: stream =>
                 {
-                    var errors = new string[parsers.Length];
-
-                    for (uint index = 0; index < parsers.Length; index++)
+                    var response = first.Parse(stream).Wait();
+                    
+                    switch (response.Tag)
                     {
-                        var parser = parsers[index];
+                        case Response.Failure:
+                            var failure = (Response<IParsed<S, T>>.Failure) response;
+                            
+                            return Events.Delay(() => second.Parse(stream));
+                        case Response.Success:
+                            var success = (Response<IParsed<S, T>>.Success) response;
 
-                        if (index + 1 == parsers.Length)
-                        {
-                            return Events.Delay(() => parser.Parse(stream));
-                        }
-
-                        var response = parser.Parse(stream).Wait();
-
-                        switch (response.Tag)
-                        {
-                            case Response.Failure:
-                                var failure = (Response<IParsed<S, T>>.Failure) response;
-
-                                errors[index] = failure.Error;
-
-                                break;
-                            case Response.Success:
-                                var success = (Response<IParsed<S, T>>.Success) response;
-
-                                return response.Now();
-                            default:
-                                throw new InvalidProgramException("Should never happen.");
-                        }
+                            return response.Now();
+                        default:
+                            throw new ArgumentOutOfRangeException();
                     }
-
-                    return "No alternative was successful.".Fail<IParsed<S, T>>().Now();
                 });
+        }
+
+        public static IParser<S, T> Alternatives<S, T>(params IParser<S, T>[] parsers)
+        {
+            return Alternatives(parsers, 0);
+        }
+
+        public static IParser<S, T> Alternatives<S, T>(IParser<S, T>[] parsers, uint index)
+        {
+            if (index < parsers.Length)
+            {
+                if (index + 1 == parsers.Length)
+                {
+                    return parsers[index];
+                }
+
+                var next = Alternatives(parsers, index + 1);
+
+                return parsers[index].OrElse(next);
+            }
+
+            return Fails<S, T>("No alternatives were successful.");
         }
 
         public static IParser<S, T[]> Sequence<S, T>(params IParser<S, T>[] parsers)
@@ -249,37 +229,25 @@ namespace PracticalCompiler
             return new Parser<S, T[]>(
                 parseF: stream =>
                 {
-                    var results = new T[parsers.Length];
+                    var array = new T[parsers.Length];
 
-                    for (uint index = 0; index < parsers.Length; index++)
-                    {
-                        var parser = parsers[index];
-
-                        var response = parser.Parse(stream).Wait();
-
-                        switch (response.Tag)
-                        {
-                            case Response.Failure:
-                                var failure = (Response<IParsed<S, T>>.Failure) response;
-
-                                return failure.Error.Fail<IParsed<S, T[]>>().Now();
-                            case Response.Success:
-                                var success = (Response<IParsed<S, T>>.Success) response;
-
-                                results[index] = success.Result.Content;
-
-                                stream = success.Result.Stream;
-
-                                break;
-                            default:
-                                throw new InvalidProgramException("Should never happen.");
-                        }
-                    }
-
-                    IParsed<S, T[]> result = new Parsed<S, T[]>(results, stream);
-
-                    return result.Succeed().Now();
+                    return Sequence<S, T>(parsers, array, 0).Parse(stream);
                 });
+        }
+
+        private static IParser<S, T[]> Sequence<S, T>(IParser<S, T>[] parsers, T[] array, int index)
+        {
+            if (index < parsers.Length)
+            {
+                return parsers[index].Continue(element =>
+                {
+                    array[index] = element;
+
+                    return Sequence(parsers, array, index + 1);
+                });
+            }
+
+            return Returns<S, T[]>(array);
         }
 
         public static IParser<S, B> Fmap<S, A, B>(this IParser<S, A> parser, Func<A, B> convert)
@@ -331,30 +299,28 @@ namespace PracticalCompiler
                 });
         }
 
-        public static IParser<S, T[]> Repeating<S, T>(this IParser<S, T> parser, uint count)
+        public static IParser<S, T[]> Repeating<S, T>(this IParser<S, T> parser)
         {
-            return new Parser<S, T[]>(
-                parseF: stream =>
+            return Delay(parser: () =>
                 {
-                    var array = new T[count];
+                    var list = new List<T>();
 
-                    return Repeating<S, T>(parser, array, 0).Parse(stream);
+                    return Repeating(parser, list);
                 });
         }
 
-        private static IParser<S, T[]> Repeating<S, T>(IParser<S, T> parser, T[] array, int index)
+        public static IParser<S, T[]> Repeating<S, T>(IParser<S, T> parser, IList<T> list)
         {
-            if (index < array.Length)
+            var repeating = parser.Continue(element =>
             {
-                return parser.Continue(element =>
-                {
-                    array[index] = element;
+                list.Add(element);
 
-                    return Repeating(parser, array, index + 1);
-                });
-            }
+                return Repeating<S, T>(parser, list);
+            });
 
-            return Returns<S, T[]>(array);
+            var terminal = Delay(() => Returns<S, T[]>(list.ToArray()));
+
+            return repeating.OrElse(terminal);
         }
     }
 }

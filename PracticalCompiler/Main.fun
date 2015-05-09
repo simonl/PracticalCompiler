@@ -79,8 +79,6 @@ better import
 
     int & bool -> string & list -> tree
     
-    */
-    /*
     functor : (type -> type) -> type;
     functor = lambda f. struct {
         map : [a] -> [b] -> (a -> b) -> (f a -> f b);
@@ -98,9 +96,6 @@ better import
 
 
     
-    */
-
-    /*
 
 	identity : [a] -> a -> a;
 	identity = lambda a. lambda x. x;
