@@ -59,6 +59,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="ProgramParsing.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RecursiveTypes\IStream2.cs" />
     <Compile Include="Response.cs" />
     <Compile Include="Simple\SimpleTerm.cs" />
     <Compile Include="Term.cs" />
