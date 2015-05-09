@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -18,7 +19,13 @@ namespace PracticalCompiler
 
          */
 
-        private static void UntypedMain()
+        public static void Main(string[] args)
+        {
+            //InteractiveMain(args);
+            PerformanceMain(args);
+        }
+
+        private static void UntypedMain(string[] args)
         {
             var constant = new UntypedTerm.Lambda("x", new UntypedTerm.Lambda("y", new UntypedTerm.Variable("x")));
             var identity = new UntypedTerm.Lambda("x", new UntypedTerm.Variable("x"));
@@ -38,7 +45,18 @@ namespace PracticalCompiler
             Console.WriteLine("Substituted " + count + " variables.");
         }
 
-        public static void Main(string[] args)
+        public static void PerformanceMain(string[] args)
+        {
+            var main = File.ReadAllText("Main.fun");
+
+            for (int i = 0; i < 500; i++)
+            {
+                //Console.WriteLine(i);
+                Tokenize(main);
+            }
+        }
+
+        public static void InteractiveMain(string[] args)
         {
             var intType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int"));
             var stringType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string"));
@@ -85,6 +103,8 @@ namespace PracticalCompiler
 
         private static void Handle(ref Environment<Classification<dynamic>> environment, string line)
         {
+            var time = Stopwatch.StartNew();
+
             try
             {
                 var result = Interpret(ref environment, line);
@@ -95,6 +115,12 @@ namespace PracticalCompiler
             {
                 Console.WriteLine("Error: " + ex.Message);
                 Console.WriteLine(ex.StackTrace);
+            }
+            finally
+            {
+                time.Stop();
+
+                Console.WriteLine("Chrono: " + time.Elapsed);
             }
         }
 
@@ -134,11 +160,21 @@ namespace PracticalCompiler
 
         private static Classification<dynamic> Execute(Environment<Classification<dynamic>> environment, string program)
         {
-            var tokens = ProgramParsing.Separated(ProgramParsing.Token()).ParseCompletely(program.ToStream());
+            var tokens = Tokenize(program);
 
-            var term = ProgramParsing.CompilationUnit().ParseCompletely(tokens.ToStream());
+            var term = Parse(tokens);
 
             return Execute(environment, term);
+        }
+
+        private static Term Parse(Token[] tokens)
+        {
+            return ProgramParsing.CompilationUnit().ParseCompletely(tokens.ToStream());
+        }
+
+        private static Token[] Tokenize(string program)
+        {
+            return ProgramParsing.Separated(ProgramParsing.Token()).ParseCompletely(program.ToStream());
         }
 
         private static Classification<dynamic> Execute(Environment<Classification<dynamic>> environment, Term term)

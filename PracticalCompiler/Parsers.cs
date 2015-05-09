@@ -27,7 +27,67 @@ namespace PracticalCompiler
         public static IParser<S, T> Delay<S, T>(Func<IParser<S, T>> parser)
         {
             return new Parser<S, T>(parseF: stream => parser().Parse(stream));
-        } 
+        }
+
+        public static IParser<S, S> Peek<S>(uint index = 0)
+        {
+            return new Parser<S, S>(
+                parseF: stream =>
+                {
+                    var step = stream.Unroll();
+
+                    switch (step.Tag)
+                    {
+                        case Step.Empty:
+
+                            return new Response<IParsed<S, S>>.Failure("End of stream.");
+                        case Step.Node:
+                            var node = (Step<S>.Node) step;
+
+                            return new Response<IParsed<S, S>>.Success(new Parsed<S, S>(node.Head, stream));
+                        default:
+                            throw new InvalidProgramException("Should never happen.");
+                    }
+                });
+        }
+        
+        public static IParser<S, S[]> Peeks<S>(int lookahead = 1)
+        {
+            return new Parser<S, S[]>(
+                parseF: stream =>
+                {
+                    var leading = new List<S>(lookahead);
+
+                    var tail = stream;
+                    var count = lookahead;
+                    while (count != 0)
+                    {
+                        count--;
+                        
+                        var step = tail.Unroll();
+
+                        switch (step.Tag)
+                        {
+                            case Step.Empty:
+
+                                count = 0;
+
+                                break;
+                            case Step.Node:
+                                var node = (Step<S>.Node) step;
+
+                                leading.Add(node.Head);
+                                tail = node.Tail;
+
+                                break;
+                            default:
+                                throw new InvalidProgramException("Should never happen.");
+                        }
+                    }
+
+                    return new Response<IParsed<S, S[]>>.Success(new Parsed<S, S[]>(leading.ToArray(), stream));
+                });
+        }
 
         public static IParser<S, S> Take<S>()
         {
@@ -40,7 +100,7 @@ namespace PracticalCompiler
                     {
                         case Step.Empty:
 
-                            return new Response<IParsed<S, S>>.Failure(new EndOfStreamException());
+                            return new Response<IParsed<S, S>>.Failure("End of stream.");
                         case Step.Node:
                             var node = (Step<S>.Node) step;
 
@@ -65,7 +125,7 @@ namespace PracticalCompiler
                             return new Response<IParsed<S, Unit>>.Success(new Parsed<S, Unit>(Unit.Singleton, stream));
                         case Step.Node:
 
-                            return new Response<IParsed<S, Unit>>.Failure(new EndOfFileExpected());
+                            return new Response<IParsed<S, Unit>>.Failure("Some stream content remaining.");
                         default:
                             throw new InvalidProgramException("Should never happen.");
                     }
@@ -79,7 +139,7 @@ namespace PracticalCompiler
 
         public static IParser<S, T> Satisfies<S, T>(this IParser<S, T> parser, Func<T, bool> condition)
         {
-            return parser.Continue<S, T, T>(result => condition(result) ? Returns<S, T>(result) : Fails<S, T>(new ConstraintException()));
+            return parser.Continue<S, T, T>(result => condition(result) ? Returns<S, T>(result) : Fails<S, T>("Parsing result did not satisfy constraint."));
         }
 
         public static IParser<S, T> Returns<S, T>(T result)
@@ -91,7 +151,7 @@ namespace PracticalCompiler
                 });
         }
 
-        public static IParser<S, T> Fails<S, T>(Exception error)
+        public static IParser<S, T> Fails<S, T>(string error)
         {
             return new Parser<S, T>(
                 parseF: stream =>
@@ -127,16 +187,21 @@ namespace PracticalCompiler
             return before.Continue(_ => parser);
         } 
 
-        public static IParser<S, IElement<T>> Alternatives<S, T>(params IParser<S, T>[] parsers)
+        public static IParser<S, T> Alternatives<S, T>(params IParser<S, T>[] parsers)
         {
-            return new Parser<S, IElement<T>>(
+            return new Parser<S, T>(
                 parseF: stream =>
                 {
-                    var errors = new Exception[parsers.Length];
+                    var errors = new string[parsers.Length];
 
                     for (uint index = 0; index < parsers.Length; index++)
                     {
                         var parser = parsers[index];
+
+                        if (index + 1 == parsers.Length)
+                        {
+                            return parser.Parse(stream);
+                        }
 
                         var response = parser.Parse(stream);
 
@@ -151,15 +216,13 @@ namespace PracticalCompiler
                             case Response.Success:
                                 var success = (Response<IParsed<S, T>>.Success) response;
 
-                                var element = success.Result.Fmap(result => new Element<T>(index, result));
-
-                                return new Response<IParsed<S, IElement<T>>>.Success(element);
+                                return success;
                             default:
                                 throw new InvalidProgramException("Should never happen.");
                         }
                     }
 
-                    return new Response<IParsed<S, IElement<T>>>.Failure(new AggregateException(errors));
+                    return new Response<IParsed<S, T>>.Failure("No alternative was successful.");
                 });
         }
 
@@ -181,7 +244,7 @@ namespace PracticalCompiler
                             case Response.Failure:
                                 var failure = (Response<IParsed<S, T>>.Failure) response;
 
-                                return new Response<IParsed<S, T[]>>.Failure(new ElementException(index, failure.Error));
+                                return new Response<IParsed<S, T[]>>.Failure(failure.Error);
                             case Response.Success:
                                 var success = (Response<IParsed<S, T>>.Success) response;
 
@@ -210,7 +273,7 @@ namespace PracticalCompiler
                 parser.Fmap(result => (Option<T>) new Option<T>.Some(result)),
                 Returns<S, Option<T>>(new Option<T>.None()));
 
-            return alternatives.Fmap(element => element.Content);
+            return alternatives;
         }
 
         public static IParser<S, T[]> Some<S, T>(this IParser<S, T> parser)

@@ -5,7 +5,23 @@ using System.Linq;
 namespace PracticalCompiler
 {
     public static class ProgramParsing
-    { 
+    {
+        public static IStream<T> Many<S, T>(IParser<S, T> parser, IStream<S> stream)
+        {
+            return new Stream<T>(
+                unrollF: () =>
+                {
+                    if (stream.Unroll().Tag == Step.Empty)
+                    {
+                        return new Step<T>.Empty();
+                    }
+
+                    var result = parser.Parse(stream).Throw();
+
+                    return new Step<T>.Node(result.Content, Many<S, T>(parser, result.Stream));
+                });
+        } 
+
         public static IParser<Token, Term> CompilationUnit()
         {
             return Script().Fmap(LetBindings);
@@ -16,8 +32,8 @@ namespace PracticalCompiler
             var command = Parsers.Alternatives<Token, Statement>(
                 Literal(Symbols.Let).Continue(_ => Element()),
                 Expression().Fmap(_ => new Statement(null, new Option<Term>.None(), new Option<Term>.Some(_))));
-            
-            return command.Fmap(element => element.Content);
+
+            return command;
         }
 
         public static Term LetBindings(Script script)
@@ -130,7 +146,7 @@ namespace PracticalCompiler
                 Term()
             );
 
-            return term.Fmap(element => element.Content);
+            return term;
         }
         
         public static IParser<Token, Term> Term()
@@ -163,7 +179,7 @@ namespace PracticalCompiler
                 Parsers.Delay(() => Between(Expression(), Brackets.Round))
             );
 
-            return term.Fmap(element => element.Content);
+            return term;
         }
 
         public static IParser<Token, ModuleType> StructType()
@@ -262,23 +278,38 @@ namespace PracticalCompiler
                     return Parsers.Returns<Token, Declaration>(new Declaration(type, variable.Content));
                 }
 
-                return Parsers.Fails<Token, Declaration>(new ArgumentException("Parameter should be a variable declaration."));
+                return Parsers.Fails<Token, Declaration>("Parameter should be a variable declaration.");
             });
         }
 
         public static IParser<char, Token> Token()
         {
-            var token = Parsers.Alternatives<char, Token>(
-                Word().Fmap(RecognizeKeywords).Satisfies(_ => _ != null),
-                Word().Fmap(word => (Token)new Token.Identifier(word)),
-                Number().Fmap(number => (Token)new Token.Number(number)),
-                Symbol().Fmap(RecognizeSymbols).Satisfies(_ => _ != null),
-                Symbol().Fmap(symbol => (Token)new Token.Operator(symbol)),
-                Bracket<Brackets>(Bracketing).Fmap(bracket => (Token)new Token.Bracket(bracket)),
-                String().Fmap(text => (Token)new Token.Text(text)));
+            return Parsers.Peek<char>()
+                .Continue<char, char, Token>(lead =>
+                {
+                    if (IsAlpha(lead))
+                    {
+                        return Word().Fmap(word => RecognizeKeywords(word) ?? new Token.Identifier(word));
+                    }
 
-            return token.Fmap(element => element.Content);
-        }
+                    if (Char.IsDigit(lead))
+                    {
+                        return Number().Fmap(number => (Token)new Token.Number(number));
+                    }
+
+                    if (IsSymbol(lead))
+                    {
+                        return Symbol().Fmap(symbol => RecognizeSymbols(symbol) ?? new Token.Operator(symbol));
+                    }
+
+                    if (lead == '"')
+                    {
+                        return String().Fmap(text => (Token)new Token.Text(text));
+                    }
+
+                    return Bracket<Brackets>(Bracketing).Fmap(bracket => (Token) new Token.Bracket(bracket));
+                });
+        } 
 
         public static Token RecognizeKeywords(string word)
         {
@@ -375,7 +406,7 @@ namespace PracticalCompiler
                 Parsers.Delay(() => Nested(start, end)).Continue(_ => NestedBody(start, end)),
                 Parsers.Take<S>().Continue(_ => NestedBody(start, end)));
 
-            return alternatives.Fmap(_ => _.Content);
+            return alternatives;
         } 
 
         public static IParser<char, string> String()
@@ -390,8 +421,42 @@ namespace PracticalCompiler
                 LineComment().Fmap(_ => (Option<T>)new Option<T>.None()),
                 BlockComment().Fmap(_ => (Option<T>)new Option<T>.None()),
                 parser.Fmap(_ => (Option<T>)new Option<T>.Some(_)));
+            
+            /*
+            var altenatives = Parsers.Peeks<char>(2)
+                .Continue<char, char[], Option<T>>(lead =>
+                {
+                    if (lead.Length == 0)
+                    {
+                        return Parsers.Fails<char, Option<T>>("End of stream.");
+                    }
 
-            var segments = altenatives.Fmap(element => element.Content).Repeat().Fmap(ArrayOperations.Filter<T>);
+                    if (Char.IsWhiteSpace(lead[0]))
+                    {
+                        return Whitespace().Fmap(_ => (Option<T>) new Option<T>.None());
+                    }
+
+                    if (lead[0] == '/')
+                    {
+                        if (lead.Length != 1)
+                        {
+                            if (lead[1] == '/')
+                            {
+                                return LineComment().Fmap(_ => (Option<T>) new Option<T>.None());
+                            }
+
+                            if (lead[1] == '*')
+                            {
+                                return BlockComment().Fmap(_ => (Option<T>) new Option<T>.None());
+                            }
+                        }
+                    }
+
+                    return parser.Fmap(_ => (Option<T>) new Option<T>.Some(_));
+                });
+            */
+                
+            var segments = altenatives.Repeat().Fmap(ArrayOperations.Filter<T>);
 
             return segments;
         }
@@ -408,7 +473,12 @@ namespace PracticalCompiler
 
         public static IParser<char, string> Word()
         {
-            return Text(@char => Char.IsLetter(@char) || @char == '_');
+            return Text(IsAlpha);
+        }
+
+        private static bool IsAlpha(char @char)
+        {
+            return Char.IsLetter(@char) || @char == '_';
         }
 
         public static IParser<char, uint> Number()
@@ -443,7 +513,7 @@ namespace PracticalCompiler
 
             var bracket = Parsers.Alternatives<char, IBracket<B>>(alternatives.ToArray());
 
-            return bracket.Fmap(element => element.Content);
+            return bracket;
         }
 
         public static IParser<char, Boundaries> Bracket(IBracketing bracketing)
@@ -455,7 +525,7 @@ namespace PracticalCompiler
 
                     if (boundary == null)
                     {
-                        return Parsers.Fails<char, Boundaries>(new NotSupportedException("Character is not a bracket: " + @char));
+                        return Parsers.Fails<char, Boundaries>("Character is not a bracket: " + @char);
                     }
 
                     return Parsers.Returns<char, Boundaries>(boundary.Value);

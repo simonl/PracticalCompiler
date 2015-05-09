@@ -2,6 +2,8 @@
 /*
 TODO:
 forall
+operator precendence; 
+    (&) < (->) < (:) < (,)
 handle scoping of struct fields correctly
 normalize types/at least substitute typedefs
 module path in types
@@ -55,9 +57,50 @@ better import
     peak : top;
     peak = new { a = string; x = ""; };
     
+    algebra : (type -> type) -> (type -> type);
+    algebra = lambda f. lambda r. f r -> r;
+
+    coalgebra : (type -> type) -> (type -> type);
+    coalgebra = lambda f. lambda r. r -> f r;
+
     /*
+
 	bottom : type;
 	bottom = [a] -> a;
+ 
+    top : type;
+    top = [a] & a;
+
+    (2, 3) : (int & int : type)
+
+    ([a=int], 2:a) : [a] & a
+
+    (2:int, 4:int -> bool)
+
+    int & bool -> string & list -> tree
+    
+    */
+    /*
+    functor : (type -> type) -> type;
+    functor = lambda f. struct {
+        map : [a] -> [b] -> (a -> b) -> (f a -> f b);
+    };
+
+    machine : (type -> type) -> type;
+    machine f = [a <: coalgebra f] & a;
+
+    reducer : (type -> type) -> type;
+    reducer f = [a <: algebra f] -> a;
+
+    
+    fold : [f <: functor] -> fix f -> reducer f
+    unfold : [f <: functor] -> machine f -> cofix f 
+
+
+    
+    */
+
+    /*
 
 	identity : [a] -> a -> a;
 	identity = lambda a. lambda x. x;

@@ -19,9 +19,9 @@ namespace PracticalCompiler
 
         public sealed class Failure : Response<T>
         {
-            public readonly Exception Error;
+            public readonly string Error;
 
-            public Failure(Exception error)
+            public Failure(string error)
                 : base(Response.Failure)
             {
                 Error = error;
@@ -69,7 +69,7 @@ namespace PracticalCompiler
                 case Response.Failure:
                     var failure = (Response<T>.Failure)response;
 
-                    throw failure.Error;
+                    throw new Exception(failure.Error);
                 case Response.Success:
                     var success = (Response<T>.Success)response;
 
