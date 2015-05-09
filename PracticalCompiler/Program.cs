@@ -21,8 +21,8 @@ namespace PracticalCompiler
 
         public static void Main(string[] args)
         {
-            //InteractiveMain(args);
-            PerformanceMain(args);
+            InteractiveMain(args);
+            //PerformanceMain(args);
             //StackMain(args);
         }
 

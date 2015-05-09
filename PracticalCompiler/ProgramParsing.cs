@@ -102,18 +102,29 @@ namespace PracticalCompiler
 
         public static IParser<Token, Term> Expression()
         {
-            return Separated(PrefixedTerm(), new Token.Symbol(Symbols.Arrow))
-                .Fmap(components => components.ReduceRight(MergeArrowComponents))
-                .Continue(arrows => Expression().After(Literal(Symbols.HasType)).Option()
-                    .Fmap(annotation =>
-                    {
-                        foreach (var type in annotation.Each())
-                        {
-                            return new Term.Annotation(new Annotated(type, arrows));
-                        }
+            var arrows = Separated(PrefixedTerm(), new Token.Symbol(Symbols.Arrow))
+                .Fmap(components => components.ReduceRight(MergeArrowComponents));
+            
+            var packs = Separated(arrows, new Token.Symbol(Symbols.Ampersand))
+                .Fmap(components => components.ReduceRight(MergePairComponents));
 
-                        return arrows;
-                    }));
+            var annotations = Separated(packs, new Token.Symbol(Symbols.HasType))
+                .Fmap(components => components.ReduceRight(MergeAnnotationComponents));
+            
+            var pairs = Separated(annotations, new Token.Symbol(Symbols.Comma))
+                .Fmap(components => components.ReduceRight(MergeConsComponents));
+
+            return pairs;
+        }
+
+        private static Term MergeConsComponents(Term left, Term right)
+        {
+            return new Term.Cons(new ConsNode(left, right));
+        }
+
+        private static Term MergeAnnotationComponents(Term term, Term type)
+        {
+            return new Term.Annotation(new Annotated(type, term));
         }
 
         private static Term MergeArrowComponents(Term @from, Term to)
@@ -128,6 +139,20 @@ namespace PracticalCompiler
             }
 
             return new Term.Arrow(new ArrowType(@from, new Option<string>.None(), to));
+        }
+
+        private static Term MergePairComponents(Term left, Term right)
+        {
+            if (left.Tag == Productions.Generic)
+            {
+                var generic = (Term.Generic) left;
+
+                var type = generic.Content.Type.Or(DefaultGenericType);
+
+                return new Term.Pair(new PairType(type, new Option<string>.Some(generic.Content.Identifier), right));
+            }
+
+            return new Term.Pair(new PairType(left, new Option<string>.None(), right));
         }
 
         private static Term.Universe DefaultGenericType
@@ -175,11 +200,16 @@ namespace PracticalCompiler
                 Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
                 NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
                 ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
-                Literal(Symbols.Dot).Continue(_ => Identifier().Fmap(name => (Term)new Term.Access(new MemberAccess(null, name)))),
+                StructAccess().Fmap(name => (Term)new Term.Access(new MemberAccess(null, name))),
                 Parsers.Delay(() => Between(Expression(), Brackets.Round))
             );
 
             return term;
+        }
+
+        private static IParser<Token, string> StructAccess()
+        {
+            return Literal(Symbols.Dot).Continue(_ => Identifier());
         }
 
         public static IParser<Token, ModuleType> StructType()
@@ -333,9 +363,12 @@ namespace PracticalCompiler
                 case ".": return new Token.Symbol(Symbols.Dot);
                 case "=": return new Token.Symbol(Symbols.Equals);
                 case ";": return new Token.Symbol(Symbols.Separator);
+                case "<:": return new Token.Symbol(Symbols.SubType);
+
                 case ":": return new Token.Symbol(Symbols.HasType);
                 case "->": return new Token.Symbol(Symbols.Arrow);
-                case "<:": return new Token.Symbol(Symbols.SubType);
+                case "&": return new Token.Symbol(Symbols.Ampersand);
+                case ",": return new Token.Symbol(Symbols.Comma);
                 default: return null;
             }
         }

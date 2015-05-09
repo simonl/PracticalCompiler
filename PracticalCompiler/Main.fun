@@ -1,9 +1,6 @@
 
 /*
 TODO:
-forall
-operator precendence; 
-    (&) < (->) < (:) < (,)
 handle scoping of struct fields correctly
 normalize types/at least substitute typedefs
 module path in types
@@ -11,6 +8,7 @@ enum
 simple pair
 translucent types
 better import
+type class quantifiers
 
 */
 
@@ -77,7 +75,7 @@ better import
 
     (2:int, 4:int -> bool)
 
-    int & bool -> string & list -> tree
+    int & bool -> string, foo : bar & list -> tree
     
     functor : (type -> type) -> type;
     functor = lambda f. struct {

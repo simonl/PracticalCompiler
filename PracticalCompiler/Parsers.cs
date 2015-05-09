@@ -174,9 +174,9 @@ namespace PracticalCompiler
                 });
         }
 
-        public static IParser<S, B> AndThen<S, B>(this IParser<S, Unit> first, IParser<S, B> second)
+        public static IParser<S, Tuple<A, B>> AndThen<S, A, B>(this IParser<S, A> first, IParser<S, B> second)
         {
-            return first.Continue(_ => second);
+            return first.Continue(x => second.Continue(y => Returns<S, Tuple<A, B>>(Tuple.Create(x, y))));
         } 
 
         public static IParser<S, T> OrElse<S, T>(this IParser<S, T> first, IParser<S, T> second)

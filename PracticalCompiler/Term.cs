@@ -7,6 +7,9 @@ namespace PracticalCompiler
     {
         Universe,
 
+        Pair,
+        Cons,
+
         Arrow,
         Lambda,
         Apply,
@@ -31,6 +34,32 @@ namespace PracticalCompiler
         public Universes(uint rank)
         {
             Rank = rank;
+        }
+    }
+
+    public sealed class PairType
+    {
+        public readonly Term Left;
+        public readonly Option<string> Identifier;
+        public readonly Term Right;
+
+        public PairType(Term left, Option<string> identifier, Term right)
+        {
+            Left = left;
+            Identifier = identifier;
+            Right = right;
+        }
+    }
+
+    public sealed class ConsNode
+    {
+        public readonly Term Left;
+        public readonly Term Right;
+
+        public ConsNode(Term left, Term right)
+        {
+            Left = left;
+            Right = right;
         }
     }
 
@@ -143,6 +172,28 @@ namespace PracticalCompiler
 
             public Universe(Universes content)
                 : base(Productions.Universe)
+            {
+                Content = content;
+            }
+        }
+
+        public sealed class Pair : Term
+        {
+            public readonly PairType Content;
+
+            public Pair(PairType content)
+                : base(Productions.Pair)
+            {
+                Content = content;
+            }
+        }
+
+        public sealed class Cons : Term
+        {
+            public readonly ConsNode Content;
+
+            public Cons(ConsNode content)
+                : base(Productions.Cons)
             {
                 Content = content;
             }

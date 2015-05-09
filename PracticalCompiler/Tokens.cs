@@ -25,10 +25,12 @@ namespace PracticalCompiler
         Dot,
         Equals,
         Separator,
+        SubType,
 
         Arrow,
+        Ampersand,
+        Comma,
         HasType,
-        SubType,
     }
     
     public enum Brackets
