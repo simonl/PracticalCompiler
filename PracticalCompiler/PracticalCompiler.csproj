@@ -52,6 +52,13 @@
     <Compile Include="IParser.cs" />
     <Compile Include="IStream.cs" />
     <Compile Include="Generic\Operations.cs" />
+    <Compile Include="Metadata\Expected.cs" />
+    <Compile Include="Metadata\IExpectation.cs" />
+    <Compile Include="Metadata\IRange.cs" />
+    <Compile Include="Metadata\IExpectedResponse.cs" />
+    <Compile Include="Metadata\ISet.cs" />
+    <Compile Include="Metadata\Expectations.cs" />
+    <Compile Include="Metadata\Number.cs" />
     <Compile Include="Option.cs" />
     <Compile Include="Parsers.cs" />
     <Compile Include="ParseTree.cs" />
