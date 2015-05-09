@@ -25,11 +25,12 @@ namespace PracticalCompiler
 
             switch (first.Tag)
             {
-                case TypeStructs.Arrow:
-                    var arrow1 = (TypeStruct.Arrow)first;
-                    var arrow2 = (TypeStruct.Arrow)second;
+                case TypeStructs.Quantified:
+                    var arrow1 = (TypeStruct.Quantified)first;
+                    var arrow2 = (TypeStruct.Quantified)second;
 
-                    return arrow1.Content.From.IsEqualTo(arrow2.Content.From)
+                    return arrow1.Content.Polarity == arrow2.Content.Polarity
+                           && arrow1.Content.From.IsEqualTo(arrow2.Content.From)
                            && arrow1.Content.To.IsEqualTo(arrow2.Content.To);
                 case TypeStructs.Module:
                     var module1 = (TypeStruct.Module)first;
@@ -66,7 +67,7 @@ namespace PracticalCompiler
 
             switch (first.Type)
             {
-                case TypeStructs.Arrow:
+                case TypeStructs.Quantified:
                     var apply1 = (Destructors.Arrow)first;
                     var apply2 = (Destructors.Arrow)second;
 

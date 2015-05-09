@@ -89,7 +89,7 @@ namespace PracticalCompiler
         {
             var intType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int"));
             var stringType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string"));
-            var operation = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(intType.Declared(), new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(intType.Declared(), intType.Term)))))));
+            var operation = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared(), new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared(), intType.Term)))))));
 
             var environment = (null as Environment<Classification<dynamic>>)
                 .Push("string", BaseType.ShiftDown<dynamic>(null))
@@ -308,7 +308,7 @@ namespace PracticalCompiler
 
                     switch (constructor.Content.Type)
                     {
-                        case TypeStructs.Arrow:
+                        case TypeStructs.Quantified:
                             var lambda = (Constructors.Arrow) constructor.Content;
 
                             return new Func<dynamic, dynamic>(x => Evaluate(Push<dynamic>(environment, lambda.Content.Identifier, x), lambda.Content.Body));
@@ -329,9 +329,9 @@ namespace PracticalCompiler
 
                     switch (destructor.Content.Type)
                     {
-                        case TypeStructs.Arrow:
+                        case TypeStructs.Quantified:
                             var apply = (Destructors.Arrow) destructor.Content;
-                            var arrow = (TypeStruct.Arrow) type.Content;
+                            var arrow = (TypeStruct.Quantified) type.Content;
 
                             var operand = Evaluate(environment, apply.Content.Operand);
 

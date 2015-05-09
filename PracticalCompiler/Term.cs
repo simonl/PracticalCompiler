@@ -7,10 +7,8 @@ namespace PracticalCompiler
     {
         Universe,
 
-        Pair,
+        Quantified,
         Cons,
-
-        Arrow,
         Lambda,
         Apply,
 
@@ -37,14 +35,16 @@ namespace PracticalCompiler
         }
     }
 
-    public sealed class PairType
+    public sealed class QuantifiedType
     {
+        public readonly Polarity Polarity;
         public readonly Term Left;
         public readonly Option<string> Identifier;
         public readonly Term Right;
 
-        public PairType(Term left, Option<string> identifier, Term right)
+        public QuantifiedType(Polarity polarity, Term left, Option<string> identifier, Term right)
         {
+            Polarity = polarity;
             Left = left;
             Identifier = identifier;
             Right = right;
@@ -60,20 +60,6 @@ namespace PracticalCompiler
         {
             Left = left;
             Right = right;
-        }
-    }
-
-    public sealed class ArrowType
-    {
-        public readonly Term From;
-        public readonly Option<string> Identifier;
-        public readonly Term To;
-
-        public ArrowType(Term @from, Option<string> identifier, Term to)
-        {
-            From = @from;
-            Identifier = identifier;
-            To = to;
         }
     }
 
@@ -177,12 +163,12 @@ namespace PracticalCompiler
             }
         }
 
-        public sealed class Pair : Term
+        public sealed class Quantified : Term
         {
-            public readonly PairType Content;
+            public readonly QuantifiedType Content;
 
-            public Pair(PairType content)
-                : base(Productions.Pair)
+            public Quantified(QuantifiedType content)
+                : base(Productions.Quantified)
             {
                 Content = content;
             }
@@ -194,17 +180,6 @@ namespace PracticalCompiler
 
             public Cons(ConsNode content)
                 : base(Productions.Cons)
-            {
-                Content = content;
-            }
-        }
-
-        public sealed class Arrow : Term
-        {
-            public readonly ArrowType Content;
-
-            public Arrow(ArrowType content)
-                : base(Productions.Arrow)
             {
                 Content = content;
             }

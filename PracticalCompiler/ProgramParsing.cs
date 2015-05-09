@@ -103,10 +103,10 @@ namespace PracticalCompiler
         public static IParser<Token, Term> Expression()
         {
             var arrows = Separated(PrefixedTerm(), new Token.Symbol(Symbols.Arrow))
-                .Fmap(components => components.ReduceRight(MergeArrowComponents));
+                .Fmap(components => components.ReduceRight((left, right) => MergeQuantifiedComponents(Polarity.Forall, left, right)));
             
             var packs = Separated(arrows, new Token.Symbol(Symbols.Ampersand))
-                .Fmap(components => components.ReduceRight(MergePairComponents));
+                .Fmap(components => components.ReduceRight((left, right) => MergeQuantifiedComponents(Polarity.Exists, left, right)));
 
             var annotations = Separated(packs, new Token.Symbol(Symbols.HasType))
                 .Fmap(components => components.ReduceRight(MergeAnnotationComponents));
@@ -127,21 +127,7 @@ namespace PracticalCompiler
             return new Term.Annotation(new Annotated(type, term));
         }
 
-        private static Term MergeArrowComponents(Term @from, Term to)
-        {
-            if (@from.Tag == Productions.Generic)
-            {
-                var generic = (Term.Generic) @from;
-
-                var type = generic.Content.Type.Or(DefaultGenericType);
-
-                return new Term.Arrow(new ArrowType(type, new Option<string>.Some(generic.Content.Identifier), to));
-            }
-
-            return new Term.Arrow(new ArrowType(@from, new Option<string>.None(), to));
-        }
-
-        private static Term MergePairComponents(Term left, Term right)
+        private static Term MergeQuantifiedComponents(Polarity polarity, Term left, Term right)
         {
             if (left.Tag == Productions.Generic)
             {
@@ -149,10 +135,10 @@ namespace PracticalCompiler
 
                 var type = generic.Content.Type.Or(DefaultGenericType);
 
-                return new Term.Pair(new PairType(type, new Option<string>.Some(generic.Content.Identifier), right));
+                return new Term.Quantified(new QuantifiedType(polarity, type, new Option<string>.Some(generic.Content.Identifier), right));
             }
 
-            return new Term.Pair(new PairType(left, new Option<string>.None(), right));
+            return new Term.Quantified(new QuantifiedType(polarity, left, new Option<string>.None(), right));
         }
 
         private static Term.Universe DefaultGenericType

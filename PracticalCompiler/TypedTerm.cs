@@ -6,11 +6,13 @@ namespace PracticalCompiler
 {
     public sealed class TypedQuantifier
     {
+        public readonly Polarity Polarity;
         public readonly Classification<Unit> From;
         public readonly TypedTerm To;
 
-        public TypedQuantifier(Classification<Unit> @from, TypedTerm to)
+        public TypedQuantifier(Polarity polarity, Classification<Unit> @from, TypedTerm to)
         {
+            Polarity = polarity;
             From = @from;
             To = to;
         }
@@ -70,7 +72,7 @@ namespace PracticalCompiler
 
     public enum TypeStructs
     {
-        Arrow,
+        Quantified,
         Module,
     }
 
@@ -83,12 +85,12 @@ namespace PracticalCompiler
             Tag = tag;
         }
 
-        public sealed class Arrow : TypeStruct
+        public sealed class Quantified : TypeStruct
         {
             public readonly TypedQuantifier Content;
 
-            public Arrow(TypedQuantifier content)
-                : base(TypeStructs.Arrow)
+            public Quantified(TypedQuantifier content)
+                : base(TypeStructs.Quantified)
             {
                 Content = content;
             }
@@ -120,7 +122,7 @@ namespace PracticalCompiler
             public readonly TypedLambda Content;
 
             public Arrow(TypedLambda content)
-                : base(TypeStructs.Arrow)
+                : base(TypeStructs.Quantified)
             {
                 Content = content;
             }
@@ -152,7 +154,7 @@ namespace PracticalCompiler
             public readonly TypedApply Content;
 
             public Arrow(TypedApply content)
-                : base(TypeStructs.Arrow)
+                : base(TypeStructs.Quantified)
             {
                 Content = content;
             }

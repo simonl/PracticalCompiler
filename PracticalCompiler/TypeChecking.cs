@@ -19,20 +19,21 @@ namespace PracticalCompiler
                         type: new TypedTerm.Universe(new Universes(universe.Content.Rank + 1)),
                         term: new TypedTerm.Universe(universe.Content));
                 }
-                case Productions.Arrow:
+                case Productions.Quantified:
                 {
-                    var type = (Term.Arrow) term;
+                    var type = (Term.Quantified) term;
 
-                    var range = InferType(doImport, environment, type.Content.To);
+                    var range = InferType(doImport, environment, type.Content.Right);
                     if (range.Type.Tag != TypedProductions.Universe)
                     {
                         throw new ArgumentException("Arrows relate types, not terms.");
                     }
 
-                    var domain = InferType(doImport, environment, type.Content.From);
+                    var domain = InferType(doImport, environment, type.Content.Left);
 
                     return range.Fmap<TypedTerm, TypedTerm>(rangeTerm => 
-                        new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(
+                        new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
+                            polarity: type.Content.Polarity,
                             @from: domain.Declared(),
                             to: rangeTerm))));
                 }
@@ -64,7 +65,7 @@ namespace PracticalCompiler
 
                         return new Classification<TypedTerm>(
                             universe: body.Universe,
-                            type: new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(annotation.Declared(), body.Type))),
+                            type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, annotation.Declared(), body.Type))),
                             term: new TypedTerm.Constructor(new Constructors.Arrow(new TypedLambda(binding.Term, body.Term))));
                     }
 
@@ -77,7 +78,12 @@ namespace PracticalCompiler
                     var @operator = InferType(doImport, environment, destructor.Content.Operator);
 
                     var type = (TypedTerm.Type) @operator.Type;
-                    var arrow = (TypeStruct.Arrow) type.Content;
+                    var arrow = (TypeStruct.Quantified) type.Content;
+
+                    if (arrow.Content.Polarity != Polarity.Forall)
+                    {
+                        throw new ArgumentException("Function application operator must have negative polarity.");
+                    }
 
                     var operand = CheckType(doImport, environment, arrow.Content.From.TypeOf(), destructor.Content.Argument);
 
@@ -163,7 +169,7 @@ namespace PracticalCompiler
                         term: new TypedTerm.Destructor(
                             @operator: new Classification<TypedTerm>(
                                 universe: continuation.Universe,
-                                type: new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(defined.TypeOf().Declared(), continuation.Type))),
+                                type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, defined.TypeOf().Declared(), continuation.Type))),
                                 term: new TypedTerm.Constructor(new Constructors.Arrow(new TypedLambda(identifier, continuation.Term)))),
                             content: new Destructors.Arrow(new TypedApply(operand: defined.Term.Value))));
                 }
@@ -262,17 +268,18 @@ namespace PracticalCompiler
 
                     throw new ArgumentException("Universe must be within a higher universe.");
                 }
-                case Productions.Arrow:
+                case Productions.Quantified:
                 {
-                    var type = (Term.Arrow)term;
+                    var type = (Term.Quantified)term;
                         
                     var universe = (TypedTerm.Universe) expected.Term;
 
-                    var range = CheckType(doImport, environment, expected, type.Content.To);
+                    var range = CheckType(doImport, environment, expected, type.Content.Right);
 
-                    var domain = InferType(doImport, environment, type.Content.From);
+                    var domain = InferType(doImport, environment, type.Content.Left);
 
-                    return new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(
+                    return new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
+                        polarity: type.Content.Polarity,
                         @from: domain.Declared(),
                         to: range)));
                 }
@@ -281,8 +288,13 @@ namespace PracticalCompiler
                     var constructor = (Term.Lambda)term;
 
                     var type = (TypedTerm.Type)expected.Term;
-                    var arrow = (TypeStruct.Arrow)type.Content;
-                        
+                    var arrow = (TypeStruct.Quantified)type.Content;
+
+                    if (arrow.Content.Polarity != Polarity.Forall)
+                    {
+                        throw new ArgumentException("Type constraint on lambda is of the wrong polarity.");
+                    }
+
                     var identifier = constructor.Content.Parameter.Identifier;
 
                     if (environment.Maps(identifier))
@@ -316,7 +328,7 @@ namespace PracticalCompiler
 
                     var argument = InferType(doImport, environment, destructor.Content.Argument);
 
-                    var arrow = expected.Fmap<TypedTerm, TypedTerm>(@return => new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(argument.TypeOf().Declared(), @return))));
+                    var arrow = expected.Fmap<TypedTerm, TypedTerm>(@return => new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, argument.TypeOf().Declared(), @return))));
 
                     var @operator = CheckType(doImport, environment, arrow, destructor.Content.Operator);
 
@@ -428,7 +440,7 @@ namespace PracticalCompiler
                     return new TypedTerm.Destructor(
                         @operator: new Classification<TypedTerm>(
                             universe: expected.Declared().Universe,
-                            type: new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(defined.TypeOf().Declared(), expected.Term))),
+                            type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, defined.TypeOf().Declared(), expected.Term))),
                             term: new TypedTerm.Constructor(new Constructors.Arrow(new TypedLambda(identifier, continuation)))), 
                         content: new Destructors.Arrow(new TypedApply(@operand: defined.Term.Value)));
                 }
@@ -498,8 +510,8 @@ namespace PracticalCompiler
 
                     switch (type.Content.Tag)
                     {
-                        case TypeStructs.Arrow:
-                            var arrow = (TypeStruct.Arrow) type.Content;
+                        case TypeStructs.Quantified:
+                            var arrow = (TypeStruct.Quantified) type.Content;
 
                             var from = arrow.Content.From.TypeOf();
                             from = new Classification<TypedTerm>(from.Universe, from.Type,
@@ -507,7 +519,7 @@ namespace PracticalCompiler
 
                             var to = Normal(expression.Fmap(_ => arrow.Content.To), environment, ref count);
 
-                            return new TypedTerm.Type(new TypeStruct.Arrow(new TypedQuantifier(from.Declared(), to)));
+                            return new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(arrow.Content.Polarity, from.Declared(), to)));
                         case TypeStructs.Module:
                             var module = (TypeStruct.Module) type.Content;
 
@@ -534,8 +546,8 @@ namespace PracticalCompiler
 
                     switch (type.Content.Tag)
                     {
-                        case TypeStructs.Arrow:
-                            var arrow = (TypeStruct.Arrow) type.Content;
+                        case TypeStructs.Quantified:
+                            var arrow = (TypeStruct.Quantified) type.Content;
                             var lambda = (Constructors.Arrow) constructor.Content;
 
                             var substitution = environment.Maps(lambda.Content.Identifier) ? ("_" + count++) : lambda.Content.Identifier;
@@ -564,8 +576,8 @@ namespace PracticalCompiler
 
                     switch (type.Content.Tag)
                     {
-                        case TypeStructs.Arrow:
-                            var arrow = (TypeStruct.Arrow)type.Content;
+                        case TypeStructs.Quantified:
+                            var arrow = (TypeStruct.Quantified)type.Content;
                             var apply = (Destructors.Arrow)destructor.Content;
 
                             var operandClass = arrow.Content.From.Fmap(_ => apply.Content.Operand);
@@ -621,8 +633,8 @@ namespace PracticalCompiler
 
                     switch (type.Content.Tag)
                     {
-                        case TypeStructs.Arrow:
-                            var arrow = (TypeStruct.Arrow) type.Content;
+                        case TypeStructs.Quantified:
+                            var arrow = (TypeStruct.Quantified) type.Content;
 
                             return FreeVariable(arrow.Content.From.Type, identifier) || FreeVariable(arrow.Content.To, identifier);
                         case TypeStructs.Module:
@@ -652,7 +664,7 @@ namespace PracticalCompiler
 
                     switch (constructor.Content.Type)
                     {
-                        case TypeStructs.Arrow:
+                        case TypeStructs.Quantified:
                             var lambda = (Constructors.Arrow) constructor.Content;
 
                             if (lambda.Content.Identifier == identifier)
@@ -680,7 +692,7 @@ namespace PracticalCompiler
 
                     switch (destructor.Content.Type)
                     {
-                        case TypeStructs.Arrow:
+                        case TypeStructs.Quantified:
                             var apply = (Destructors.Arrow)destructor.Content;
 
                             return FreeVariable(apply.Content.Operand, identifier);
