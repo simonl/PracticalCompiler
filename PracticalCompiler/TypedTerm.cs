@@ -7,10 +7,10 @@ namespace PracticalCompiler
     public sealed class TypedQuantifier
     {
         public readonly Polarity Polarity;
-        public readonly Classification<Unit> From;
+        public readonly Classification<string> From;
         public readonly TypedTerm To;
 
-        public TypedQuantifier(Polarity polarity, Classification<Unit> @from, TypedTerm to)
+        public TypedQuantifier(Polarity polarity, Classification<string> @from, TypedTerm to)
         {
             Polarity = polarity;
             From = @from;

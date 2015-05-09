@@ -89,7 +89,7 @@ namespace PracticalCompiler
         {
             var intType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int"));
             var stringType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string"));
-            var operation = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared(), new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared(), intType.Term)))))));
+            var operation = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared("*"), new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared("*"), intType.Term)))))));
 
             var environment = (null as Environment<Classification<dynamic>>)
                 .Push("string", BaseType.ShiftDown<dynamic>(null))

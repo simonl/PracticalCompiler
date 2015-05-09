@@ -1,6 +1,7 @@
 
 /*
 TODO:
+forall,
 handle scoping of struct fields correctly
 normalize types/at least substitute typedefs
 module path in types
@@ -14,13 +15,6 @@ type class quantifiers
 
 	lib = import "Library.fun";
 	
-/*
-	monad : (type -> type) -> type;
-	monad m = struct {
-		lift : [a] -> a -> m a;
-		join : [a] -> m (m a) -> m a;
-	};
-*/
 
     monoid : type -> type;
     monoid = lambda m. struct {
@@ -43,16 +37,16 @@ type class quantifiers
     unit : type;
     unit = struct { };
 
-    top : type;
-    top = struct {
+    toplike : type;
+    toplike = struct {
         a : type;
         x : a;
     };
 
-    high : top;
+    high : toplike;
     high = new { a = int; x = 0; };
 
-    peak : top;
+    peak : toplike;
     peak = new { a = string; x = ""; };
     
     algebra : (type -> type) -> (type -> type);
@@ -61,14 +55,63 @@ type class quantifiers
     coalgebra : (type -> type) -> (type -> type);
     coalgebra = lambda f. lambda r. r -> f r;
 
-    /*
+    // Polymorphic types
 
+    top : type;
+    top = [a] & a;
+    
 	bottom : type;
 	bottom = [a] -> a;
  
-    top : type;
-    top = [a] & a;
+    functor : (type -> type) -> type;
+    functor = lambda f. struct {
+        map : [a] -> [b] -> (a -> b) -> (f a -> f b);
+    };
 
+    machine : (type -> type) -> type;
+    machine = lambda f. [r] & coalgebra f r & r;
+
+    reducer : (type -> type) -> type;
+    reducer = lambda f. [r] -> algebra f r -> r;
+    
+    identity : type;
+    identity = [a] -> a -> a;
+    
+    async : (type -> type) -> (type -> type);
+    async = lambda f. lambda a. [r] -> (a -> f r) -> f r;
+
+	monad : (type -> type) -> type;
+	monad = lambda m. struct {
+		lift : [a] -> a -> m a;
+		join : [a] -> m (m a) -> m a;
+	};
+
+    monadic : (type -> type) -> type;
+    monadic = lambda m. struct { 
+        continue : [a] -> m a -> async m a;
+    };
+
+    pair : type -> type -> type;
+    pair = lambda a. lambda b. struct { 
+        unpack : [r] -> (a -> b -> r) -> r;
+    };
+ 
+    continuation : type -> type -> type -> type;
+    continuation = lambda a. lambda b. lambda r. struct {
+        left : a -> r;
+        right : b -> r;
+    };
+
+    union : type -> type -> type;
+    union = lambda a. lambda b. struct { 
+        unpack : [r] -> continuation a b r -> r;
+    };
+
+    list : type -> type;
+    list = lambda [a]. reducer (lambda [r]. union unit (pair a r));
+
+    /*
+    
     (2, 3) : (int & int : type)
 
     ([a=int], 2:a) : [a] & a
@@ -77,28 +120,20 @@ type class quantifiers
 
     int & bool -> string, foo : bar & list -> tree
     
-    functor : (type -> type) -> type;
-    functor = lambda f. struct {
-        map : [a] -> [b] -> (a -> b) -> (f a -> f b);
-    };
-
     machine : (type -> type) -> type;
     machine f = [a <: coalgebra f] & a;
 
     reducer : (type -> type) -> type;
     reducer f = [a <: algebra f] -> a;
-
     
     fold : [f <: functor] -> fix f -> reducer f
     unfold : [f <: functor] -> machine f -> cofix f 
 
 
-    
-
 	identity : [a] -> a -> a;
 	identity = lambda a. lambda x. x;
 
-	null = new top {
+	null = new toplike {
 		a = typeof identity;
 		x = identity;
 	};

@@ -22,19 +22,24 @@ namespace PracticalCompiler
                 case Productions.Quantified:
                 {
                     var type = (Term.Quantified) term;
+                        
+                    var domain = InferType(doImport, environment, type.Content.Left);
+
+                    var from = domain.Declared(type.Content.Identifier.Or("*"));
+
+                    environment = environment.Push(from);
 
                     var range = InferType(doImport, environment, type.Content.Right);
+
                     if (range.Type.Tag != TypedProductions.Universe)
                     {
                         throw new ArgumentException("Arrows relate types, not terms.");
                     }
 
-                    var domain = InferType(doImport, environment, type.Content.Left);
-
                     return range.Fmap<TypedTerm, TypedTerm>(rangeTerm => 
                         new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
                             polarity: type.Content.Polarity,
-                            @from: domain.Declared(),
+                            @from: from,
                             to: rangeTerm))));
                 }
                 case Productions.Lambda:
@@ -58,15 +63,15 @@ namespace PracticalCompiler
 
                         var body = InferType(doImport, environment, constructor.Content.Body);
 
-                        if (FreeVariable(body.Type, binding.Term))
+                        if (FreeVariable(body.Type, identifier))
                         {
                             throw new ArgumentException("Return type should not depend on parameter.");
                         }
 
                         return new Classification<TypedTerm>(
                             universe: body.Universe,
-                            type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, annotation.Declared(), body.Type))),
-                            term: new TypedTerm.Constructor(new Constructors.Arrow(new TypedLambda(binding.Term, body.Term))));
+                            type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, annotation.Declared("*"), body.Type))),
+                            term: new TypedTerm.Constructor(new Constructors.Arrow(new TypedLambda(identifier, body.Term))));
                     }
 
                     throw new ArgumentException("Cannot infer type of unannotated parameter.");
@@ -169,7 +174,7 @@ namespace PracticalCompiler
                         term: new TypedTerm.Destructor(
                             @operator: new Classification<TypedTerm>(
                                 universe: continuation.Universe,
-                                type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, defined.TypeOf().Declared(), continuation.Type))),
+                                type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, defined.TypeOf().Declared("*"), continuation.Type))),
                                 term: new TypedTerm.Constructor(new Constructors.Arrow(new TypedLambda(identifier, continuation.Term)))),
                             content: new Destructors.Arrow(new TypedApply(operand: defined.Term.Value))));
                 }
@@ -274,13 +279,17 @@ namespace PracticalCompiler
                         
                     var universe = (TypedTerm.Universe) expected.Term;
 
-                    var range = CheckType(doImport, environment, expected, type.Content.Right);
-
                     var domain = InferType(doImport, environment, type.Content.Left);
+
+                    var from = domain.Declared(type.Content.Identifier.Or("*"));
+                        
+                    environment = environment.Push(from);
+
+                    var range = CheckType(doImport, environment, expected, type.Content.Right);
 
                     return new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
                         polarity: type.Content.Polarity,
-                        @from: domain.Declared(),
+                        @from: from,
                         to: range)));
                 }
                 case Productions.Lambda:
@@ -328,7 +337,7 @@ namespace PracticalCompiler
 
                     var argument = InferType(doImport, environment, destructor.Content.Argument);
 
-                    var arrow = expected.Fmap<TypedTerm, TypedTerm>(@return => new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, argument.TypeOf().Declared(), @return))));
+                    var arrow = expected.Fmap<TypedTerm, TypedTerm>(@return => new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, argument.TypeOf().Declared("*"), @return))));
 
                     var @operator = CheckType(doImport, environment, arrow, destructor.Content.Operator);
 
@@ -439,8 +448,8 @@ namespace PracticalCompiler
 
                     return new TypedTerm.Destructor(
                         @operator: new Classification<TypedTerm>(
-                            universe: expected.Declared().Universe,
-                            type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, defined.TypeOf().Declared(), expected.Term))),
+                            universe: expected.Declared("*").Universe,
+                            type: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, defined.TypeOf().Declared("*"), expected.Term))),
                             term: new TypedTerm.Constructor(new Constructors.Arrow(new TypedLambda(identifier, continuation)))), 
                         content: new Destructors.Arrow(new TypedApply(@operand: defined.Term.Value)));
                 }
@@ -514,12 +523,14 @@ namespace PracticalCompiler
                             var arrow = (TypeStruct.Quantified) type.Content;
 
                             var from = arrow.Content.From.TypeOf();
-                            from = new Classification<TypedTerm>(from.Universe, from.Type,
-                                Normal(from, environment, ref count));
+
+                            from = new Classification<TypedTerm>(from.Universe, from.Type, Normal(from, environment, ref count));
+
+                            var substitution = PushSubstitution(ref environment, ref count, arrow.Content.From.Term);
 
                             var to = Normal(expression.Fmap(_ => arrow.Content.To), environment, ref count);
 
-                            return new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(arrow.Content.Polarity, from.Declared(), to)));
+                            return new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(arrow.Content.Polarity, from.Declared(substitution), to)));
                         case TypeStructs.Module:
                             var module = (TypeStruct.Module) type.Content;
 
@@ -550,9 +561,7 @@ namespace PracticalCompiler
                             var arrow = (TypeStruct.Quantified) type.Content;
                             var lambda = (Constructors.Arrow) constructor.Content;
 
-                            var substitution = environment.Maps(lambda.Content.Identifier) ? ("_" + count++) : lambda.Content.Identifier;
-
-                            environment = environment.Push(lambda.Content.Identifier, new TypedTerm.Variable(substitution));
+                            var substitution = PushSubstitution(ref environment, ref count, lambda.Content.Identifier);
 
                             var body = Normal(new Classification<TypedTerm>(expression.Universe, arrow.Content.To, lambda.Content.Body), environment, ref count);
 
@@ -617,6 +626,15 @@ namespace PracticalCompiler
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        private static string PushSubstitution(ref Environment<TypedTerm> environment, ref uint count, string identifier)
+        {
+            var substitution = identifier == "*" ? identifier : (environment.Maps(identifier) ? ("_" + count++) : identifier);
+
+            environment = environment.Push(identifier, new TypedTerm.Variable(substitution));
+
+            return substitution;
         }
 
         public static bool FreeVariable(TypedTerm term, string identifier)
@@ -727,9 +745,9 @@ namespace PracticalCompiler
                 term: convert(expression.Term));
         }
 
-        public static Classification<Unit> Declared(this Classification<TypedTerm> expression)
+        public static Classification<string> Declared(this Classification<TypedTerm> expression, string identifier)
         {
-            return expression.ShiftDown(Unit.Singleton);
+            return expression.ShiftDown(identifier);
         } 
 
         public static Classification<TypedTerm> TypeOf<T>(this Classification<T> expression)
