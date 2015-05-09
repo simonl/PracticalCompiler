@@ -22,7 +22,8 @@ namespace PracticalCompiler
         public static void Main(string[] args)
         {
             //InteractiveMain(args);
-            PerformanceMain(args);
+            //PerformanceMain(args);
+            StackMain(args);
         }
 
         private static void UntypedMain(string[] args)
@@ -54,6 +55,34 @@ namespace PracticalCompiler
                 //Console.WriteLine(i);
                 Tokenize(main);
             }
+        }
+
+        public static void StackMain(string[] args)
+        {
+            for (int i = 0; i < 5000; i++)
+            {
+                uint count = 1000;
+
+                var stream = 'a'.Repeat(count).ToStream();
+                var parser = Parsers.Take<char>().Repeating(count);
+
+                uint jumps;
+                var result = parser.Parse(stream).Wait(out jumps).Throw();
+
+                var remaining = result.Stream.AsEnumerable().Any();
+            }
+        }
+
+        public static T[] Repeat<T>(this T instance, uint count)
+        {
+            var array = new T[count];
+
+            for (uint index = 0; index < count; index++)
+            {
+                array[index] = instance;
+            }
+
+            return array;
         }
 
         public static void InteractiveMain(string[] args)

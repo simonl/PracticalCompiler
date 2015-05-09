@@ -308,5 +308,65 @@ namespace PracticalCompiler
                     return new Response<IParsed<S, T[]>>.Success(new Parsed<S, T[]>(results.ToArray(), stream));
                 });
         }
+
+        public static IParserG<S, T[]> Repeating<S, T>(this IParser<S, T> parser, uint count)
+        {
+            return new ParserG<S, T[]>(
+                parseF: stream =>
+                {
+                    var array = new T[count];
+
+                    return Repeating<S, T>(parser.ToG(), array, 0).Parse(stream);
+                });
+        }
+
+        private static IParserG<S, T[]> Repeating<S, T>(IParserG<S, T> parser, T[] array, int index)
+        {
+            if (index < array.Length)
+            {
+                return parser.ContinueJump(element =>
+                {
+                    array[index] = element;
+
+                    return Repeating(parser, array, index + 1);
+                });
+            }
+
+            return Returns<S, T[]>(array).ToG();
+        }
+
+        private static IParserG<S, T> ToG<S, T>(this IParser<S, T> parser)
+        {
+            return new ParserG<S, T>(
+                parseF: stream =>
+                {
+                    return parser.Parse(stream).Now();
+                });
+        }
+
+        private static IParserG<S, B> ContinueJump<S, A, B>(this IParserG<S, A> parser, Func<A, IParserG<S, B>> generate)
+        {
+            return new ParserG<S, B>(
+                parseF: stream =>
+                {
+                    var response = parser.Parse(stream).Wait();
+
+                    switch (response.Tag)
+                    {
+                        case Response.Failure:
+                            var failure = (Response<IParsed<S, A>>.Failure) response;
+
+                            return new Response<IParsed<S, B>>.Failure(failure.Error).Now<Response<IParsed<S, B>>>();
+                        case Response.Success:
+                            var success = (Response<IParsed<S, A>>.Success) response;
+
+                            var next = generate(success.Result.Content);
+                            
+                            return Events.Delay(() => next.Parse(success.Result.Stream));
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                });
+        } 
     }
 }

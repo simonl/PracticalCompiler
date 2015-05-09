@@ -21,6 +21,26 @@ namespace PracticalCompiler
             return this.ParseF(stream);
         }
     }
+    
+    public interface IParserG<S, T>
+    {
+        IEventual<Response<IParsed<S, T>>> Parse(IStream<S> stream);
+    }
+
+    public sealed class ParserG<S, T> : IParserG<S, T>
+    {
+        private readonly Func<IStream<S>, IEventual<Response<IParsed<S, T>>>> ParseF;
+
+        public ParserG(Func<IStream<S>, IEventual<Response<IParsed<S, T>>>> parseF)
+        {
+            ParseF = parseF;
+        }
+
+        public IEventual<Response<IParsed<S, T>>> Parse(IStream<S> stream)
+        {
+            return this.ParseF(stream);
+        }
+    }
 
     public interface IParsed<S, out T>
     {

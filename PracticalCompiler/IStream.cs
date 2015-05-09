@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace PracticalCompiler
@@ -63,6 +64,31 @@ namespace PracticalCompiler
 
     public static class Streams
     {
+        public static IEnumerable<T> AsEnumerable<T>(this IStream<T> stream)
+        {
+            while (true)
+            {
+                var step = stream.Unroll();
+
+                switch (step.Tag)
+                {
+                    case Step.Empty:
+
+                        yield break;
+                    case Step.Node:
+                        var node = (Step<T>.Node) step;
+
+                        yield return node.Head;
+
+                        stream = node.Tail;
+
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+        }
+
         public static IStream<T> ToStream<T>(this T[] array)
         {
             return ArrayStream<T>(array, 0);

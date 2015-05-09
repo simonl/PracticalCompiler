@@ -70,10 +70,18 @@ namespace PracticalCompiler
         public static IEventual<T> Delay<T>(Func<IEventual<T>> generate)
         {
             return new Eventual<T>(unrollF: () => new Event<T>.Later(generate()));
-        } 
+        }
 
         public static T Wait<T>(this IEventual<T> eventual)
         {
+            uint count;
+            return eventual.Wait(out count);
+        }
+
+        public static T Wait<T>(this IEventual<T> eventual, out uint count)
+        {
+            count = 0;
+
             while (true)
             {
                 var @event = eventual.Unroll();
@@ -88,6 +96,7 @@ namespace PracticalCompiler
                         var later = (Event<T>.Later) @event;
 
                         eventual = later.Content;
+                        count++;
 
                         break;
                     default:
