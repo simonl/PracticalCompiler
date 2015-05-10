@@ -14,9 +14,40 @@ better import
 
 	lib = import "Library.fun";
 	
+    /*
+
+    boolean : type;
+    boolean = union { true; false; }
+
+    bTrue = #true : boolean;
+
+    #some, 3;
+
+    r #some
+
+    option : type -> type;
+    option a = union { 
+        None;
+        Some : a; 
+    };
+
+    what : type -> typeof type;
+    what a = union {
+        left : type;
+        right : type -> type;
+    };
+
+    left int;
+    right list;
+
+    three = Some 3 : option int;
+
+    */
+
+    kind = typeof type;
 
     monoid : type -> type;
-    monoid = lambda m. struct {
+    monoid m = struct {
         null : m;
         (<>) : m -> m -> m;
     };
@@ -55,29 +86,29 @@ better import
     quantifier = (type -> type) -> type;
  
     algebra : (type -> type) -> (type -> type);
-    algebra = lambda f. lambda r. f r -> r;
+    algebra f r = f r -> r;
 
     coalgebra : (type -> type) -> (type -> type);
-    coalgebra = lambda f. lambda r. r -> f r;
+    coalgebra f r = r -> f r;
 
     machine : quantifier;
-    machine = lambda f. [r <: coalgebra f] & r;
+    machine f = [r <: coalgebra f] & r;
 
     reducer : quantifier;
-    reducer = lambda f. [r <: algebra f] -> r;
+    reducer f = [r <: algebra f] -> r;
 
     functor : (type -> type) -> type;
-    functor = lambda f. struct {
+    functor f = struct {
         map : [a] -> [b] -> (a -> b) -> (f a -> f b);
     };
 
     inductive : quantifier -> type;
-    inductive = lambda fix. struct {
+    inductive fix = struct {
         fold : [f <: functor] -> fix f -> reducer f;
     };
 
     coinductive : quantifier -> type;
-    coinductive = lambda fix. struct {
+    coinductive fix = struct {
         unfold : [f <: functor] -> machine f -> fix f;
     };
 
@@ -93,43 +124,43 @@ better import
     identity = [a] -> a -> a;
     
     async : (type -> type) -> (type -> type);
-    async = lambda f. lambda a. [r] -> (a -> f r) -> f r;
+    async f a = [r] -> (a -> f r) -> f r;
 
 	monad : (type -> type) -> type;
-	monad = lambda m. struct {
+	monad m = struct {
 		lift : [a] -> a -> m a;
 		join : [a] -> m (m a) -> m a;
 	};
 
     monadic : (type -> type) -> type;
-    monadic = lambda m. struct { 
+    monadic m = struct { 
         (>>=) : [a] -> m a -> async m a;
     };
 
     pair : type -> type -> type;
-    pair = lambda a. lambda b. struct { 
+    pair a b = struct { 
         unpack : [r] -> (a -> b -> r) -> r;
     };
  
     continuation : type -> type -> type -> type;
-    continuation = lambda a. lambda b. lambda r. struct {
+    continuation a b r = struct {
         left : a -> r;
         right : b -> r;
     };
 
     union : type -> type -> type;
-    union = lambda a. lambda b. struct { 
+    union a b = struct { 
         unpack : [r] -> continuation a b r -> r;
     };
-
-    list : type -> type;
-    list = lambda [a]. reducer (lambda [r]. union unit (pair a r));
-
-    decidable : type -> type;
-    decidable = lambda a. union a (a -> bottom);
-
+    
     (~) : quantifier;
     (~) = reducer;
+
+    list : type -> type;
+    list [a] = [r] ~ union unit (pair a r);
+
+    decidable : type -> type;
+    decidable a = union a (a -> bottom);
 
     conat : type;
     conat = [r] ~ union unit r;
@@ -146,12 +177,12 @@ better import
     int & bool -> string, foo : bar & list -> tree
     
     (==) : [a] -> a -> a -> type;
-    (==) = lambda a. lambda x. lambda y. struct {
+    (==) a x y = struct {
         cast : [c:a -> type] -> c x -> c y;
     };
     
 	identity : [a] -> a -> a;
-	identity = lambda a. lambda x. x;
+	identity [a] [x:a] = x;
 
 	null = new toplike {
 		a = typeof identity;
@@ -160,13 +191,13 @@ better import
 */
 
     (<,>) : type -> type -> type;
-    (<,>) = lambda a. lambda b. struct {
+    (<,>) a b = struct {
         first : a;
         second : b;
     };
     
     //equality : type -> type;
-    equality = lambda [a]. struct {
+    equality [a] = struct {
         (=?) : (a <,> a) -> bool;
     };
     
@@ -176,19 +207,19 @@ better import
     };
     
     (|>) : int -> (int -> int) -> int;
-    (|>) = lambda x. lambda f. f x;
+    (|>) x f = f x;
 
     square : int -> int;
-    square = lambda x. (*) x x;
+    square x = (*) x x;
 
     length : vector -> int;
-    length = lambda v. square (v .x) + square (v .y);
+    length v : int = square (v .x) + square (v .y);
 
     operation : type;
     operation = int -> int -> int;
 
     identity : int -> int;
-    identity = lambda x. x;
+    identity x = x;
 
     //hello : string;
     hello = "Hello, World!";

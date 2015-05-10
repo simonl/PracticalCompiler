@@ -96,8 +96,39 @@ namespace PracticalCompiler
             var definition = Literal(Symbols.Equals).Continue(_ => Expression()).Option();
 
             return Identifier().Continue(identifier =>
+                Parameter().Repeat().Continue(parameters =>
                 declaration.Continue(type => 
-                definition.Continue(term => Parsers.Returns<Token, Statement>(new Statement(identifier, type, term)))));
+                definition.Continue(term =>
+                {
+                    if (type.Tag == Option.None && term.Tag == Option.None)
+                    {
+                        return Parsers.Fails<Token, Statement>("Statement must be a declaration or a definition.");
+                    }
+
+                    if (parameters.Length != 0)
+                    {
+                        if (term.Tag == Option.None)
+                        {
+                            throw new ArgumentException("Cannot have parameters on the left hand side of a pure declaration: " + identifier);
+                        }
+
+                        var body = term.Get();
+
+                        foreach (var annotation in type.Each())
+                        {
+                            body = new Term.Annotation(new Annotated(annotation, body));
+                        }
+                        
+                        return Parsers.Returns<Token, Statement>(new Statement(identifier, new Option<Term>.None(), MergeDefinitionParameters(parameters, body).Some()));
+                    }
+
+                    return Parsers.Returns<Token, Statement>(new Statement(identifier, type, term));
+                }))));
+        }
+
+        private static Term MergeDefinitionParameters(Declaration[] parameters, Term definition)
+        {
+            return parameters.ReduceRight(definition, (param, body) => new Term.Lambda(new LambdaTerm(param, body)));
         }
 
         public static IParser<Token, Term> Expression()

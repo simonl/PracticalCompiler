@@ -67,6 +67,16 @@ namespace PracticalCompiler
             return @default;
         }
 
+        public static Option<B> Fmap<A, B>(this Option<A> option, Func<A, B> convert)
+        {
+            foreach (var element in option.Each())
+            {
+                return convert(element).Some();
+            }
+
+            return new Option<B>.None();;
+        } 
+
         public static Option<T> Merge<T>(this Option<T> first, Option<T> second, Func<T, T, T> merge)
         {
             foreach (var left in first.Each())

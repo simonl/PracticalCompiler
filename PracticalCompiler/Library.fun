@@ -1,6 +1,6 @@
 
 	return : int -> int;
-	return = lambda x. x;
+	return x = x;
 
 	two = 1 + 1;
 
