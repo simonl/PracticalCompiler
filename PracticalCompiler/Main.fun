@@ -1,15 +1,14 @@
 
 /*
 TODO:
-forall,
+forall, exists
 handle scoping of struct fields correctly
-normalize types/at least substitute typedefs
+normalize types better
 module path in types
 enum
 simple pair
 translucent types
 better import
-type class quantifiers
 
 */
 
@@ -49,30 +48,46 @@ type class quantifiers
     peak : toplike;
     peak = new { a = string; x = ""; };
     
+    // Polymorphic types
+
+
+    quantifier : typeof type;
+    quantifier = (type -> type) -> type;
+ 
     algebra : (type -> type) -> (type -> type);
     algebra = lambda f. lambda r. f r -> r;
 
     coalgebra : (type -> type) -> (type -> type);
     coalgebra = lambda f. lambda r. r -> f r;
 
-    // Polymorphic types
+    machine : quantifier;
+    machine = lambda f. [r <: coalgebra f] & r;
+
+    reducer : quantifier;
+    reducer = lambda f. [r <: algebra f] -> r;
+
+    functor : (type -> type) -> type;
+    functor = lambda f. struct {
+        map : [a] -> [b] -> (a -> b) -> (f a -> f b);
+    };
+
+    inductive : quantifier -> type;
+    inductive = lambda fix. struct {
+        fold : [f <: functor] -> fix f -> reducer f;
+    };
+
+    coinductive : quantifier -> type;
+    coinductive = lambda fix. struct {
+        unfold : [f <: functor] -> machine f -> fix f;
+    };
+
+
 
     top : type;
     top = [a] & a;
     
 	bottom : type;
 	bottom = [a] -> a;
- 
-    functor : (type -> type) -> type;
-    functor = lambda f. struct {
-        map : [a] -> [b] -> (a -> b) -> (f a -> f b);
-    };
-
-    machine : (type -> type) -> type;
-    machine = lambda f. [r] & coalgebra f r & r;
-
-    reducer : (type -> type) -> type;
-    reducer = lambda f. [r] -> algebra f r -> r;
     
     identity : type;
     identity = [a] -> a -> a;
@@ -110,8 +125,12 @@ type class quantifiers
     list : type -> type;
     list = lambda [a]. reducer (lambda [r]. union unit (pair a r));
 
+    decidable : type -> type;
+    decidable = lambda a. union a (a -> bottom);
+
     /*
     
+
     (2, 3) : (int & int : type)
 
     ([a=int], 2:a) : [a] & a
@@ -120,15 +139,15 @@ type class quantifiers
 
     int & bool -> string, foo : bar & list -> tree
     
-    machine : (type -> type) -> type;
-    machine f = [a <: coalgebra f] & a;
-
-    reducer : (type -> type) -> type;
-    reducer f = [a <: algebra f] -> a;
+    (==) : [a] -> a -> a -> type;
+    (==) = lambda a. lambda x. lambda y. struct {
+        cast : [c:a -> type] -> c x -> c y;
+    };
     
-    fold : [f <: functor] -> fix f -> reducer f
-    unfold : [f <: functor] -> machine f -> cofix f 
-
+    equality : type -> type;
+    equality = lambda a. struct {
+        (=?) : [x:a] -> [y:a] -> decidable ((==) a x y);
+    };
 
 	identity : [a] -> a -> a;
 	identity = lambda a. lambda x. x;

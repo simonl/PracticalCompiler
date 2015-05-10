@@ -47,7 +47,6 @@
     <Compile Include="ElementException.cs" />
     <Compile Include="Environment.cs" />
     <Compile Include="IBracket.cs" />
-    <Compile Include="IElement.cs" />
     <Compile Include="IEventual.cs" />
     <Compile Include="IParser.cs" />
     <Compile Include="IStream.cs" />
@@ -73,6 +72,7 @@
     <Compile Include="TermComparisons.cs" />
     <Compile Include="Tokens.cs" />
     <Compile Include="TypeChecking.cs" />
+    <Compile Include="TypeConstraint.cs" />
     <Compile Include="TypedTerm.cs" />
     <Compile Include="Unit.cs" />
     <Compile Include="Untyped\UntypedTerm.cs" />

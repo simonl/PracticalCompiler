@@ -38,11 +38,11 @@ namespace PracticalCompiler
     public sealed class QuantifiedType
     {
         public readonly Polarity Polarity;
-        public readonly Term Left;
+        public readonly TypeConstraint Left;
         public readonly Option<string> Identifier;
         public readonly Term Right;
 
-        public QuantifiedType(Polarity polarity, Term left, Option<string> identifier, Term right)
+        public QuantifiedType(Polarity polarity, TypeConstraint left, Option<string> identifier, Term right)
         {
             Polarity = polarity;
             Left = left;
@@ -134,11 +134,13 @@ namespace PracticalCompiler
     public sealed class Declaration
     {
         public readonly Option<Term> Type;
+        public readonly Option<Term> Class; 
         public readonly string Identifier;
 
-        public Declaration(Option<Term> type, string identifier)
+        public Declaration(Option<Term> type, Option<Term> @class, string identifier)
         {
             Type = type;
+            Class = @class;
             Identifier = identifier;
         }
     }
@@ -242,12 +244,14 @@ namespace PracticalCompiler
 
         public sealed class Generic : Term
         {
-            public readonly Declaration Content;
+            public readonly string Identifier;
+            public readonly TypeConstraint Constraint;
 
-            public Generic(Declaration content)
+            public Generic(string identifier, TypeConstraint constraint)
                 : base(Productions.Generic)
             {
-                Content = content;
+                Identifier = identifier;
+                Constraint = constraint;
             }
         }
 

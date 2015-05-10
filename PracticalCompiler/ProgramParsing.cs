@@ -133,17 +133,12 @@ namespace PracticalCompiler
             {
                 var generic = (Term.Generic) left;
 
-                var type = generic.Content.Type.Or(DefaultGenericType);
+                var identifier = generic.Identifier.Some();
 
-                return new Term.Quantified(new QuantifiedType(polarity, type, new Option<string>.Some(generic.Content.Identifier), right));
+                return new Term.Quantified(new QuantifiedType(polarity, generic.Constraint, identifier, right));
             }
 
-            return new Term.Quantified(new QuantifiedType(polarity, left, new Option<string>.None(), right));
-        }
-
-        private static Term.Universe DefaultGenericType
-        {
-            get { return new Term.Universe(new Universes(0)); }
+            return new Term.Quantified(new QuantifiedType(polarity, new TypeConstraint.Type(left), new Option<string>.None(), right));
         }
 
         public static IParser<Token, Term> PrefixedTerm()
@@ -249,10 +244,17 @@ namespace PracticalCompiler
 
         public static IParser<Token, Term> Generic()
         {
-            return Identifier()
-                .Continue(parameter => Literal(Symbols.HasType).Continue(_ => Expression()).Option().Continue(type => 
-                Parsers.Returns<Token, Term>(new Term.Generic(new Declaration(type, parameter)))))
-                .Between(Brackets.Square);
+            var declaration = Literal(Symbols.HasType).Continue(_ => Expression()).Fmap(_ => (TypeConstraint)new TypeConstraint.Type(_));
+
+            var classification = Literal(Symbols.SubType).Continue(_ => Expression()).Fmap(_ => (TypeConstraint)new TypeConstraint.Class(_));
+
+            var none = Parsers.Returns<Token, TypeConstraint>(new TypeConstraint.None());
+
+            var generic = Identifier()
+                .Continue(identifier => Parsers.Alternatives(declaration, classification, none)
+                    .Continue(constraint => Parsers.Returns<Token, Term>(new Term.Generic(identifier, constraint))));
+
+            return generic.Between(Brackets.Square);
         }
 
         public static IParser<Token, Term> Lambda()
@@ -273,11 +275,29 @@ namespace PracticalCompiler
                 {
                     var generic = (Term.Generic) term;
 
-                    type = new Option<Term>.Some(generic.Content.Type.Or(DefaultGenericType));
+                    switch (generic.Constraint.Tag)
+                    {
+                        case TypeConstraints.None:
 
-                    term = new Term.Variable(generic.Content.Identifier);
+                            type = new Option<Term>.Some(TypeChecking.DefaultGenericType);
+
+                            break;
+                        case TypeConstraints.Type:
+                            var annotation = (TypeConstraint.Type) generic.Constraint;
+
+                            type = new Option<Term>.Some(annotation.Content);
+
+                            break;
+                        case TypeConstraints.Class:
+
+                            throw new ArgumentException("Lambda parameter cannot be bounded by a class.");
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+
+                    term = new Term.Variable(generic.Identifier);
                 }
-
+                
                 if (term.Tag == Productions.Annotation)
                 {
                     var annotation = (Term.Annotation) term;
@@ -291,7 +311,7 @@ namespace PracticalCompiler
                 {
                     var variable = (Term.Variable) term;
 
-                    return Parsers.Returns<Token, Declaration>(new Declaration(type, variable.Content));
+                    return Parsers.Returns<Token, Declaration>(new Declaration(type, new Option<Term>.None(), variable.Content));
                 }
 
                 return Parsers.Fails<Token, Declaration>("Parameter should be a variable declaration.");
@@ -403,6 +423,43 @@ namespace PracticalCompiler
             var online = Parsers.Take<char>().Satisfies(c => c != '\n');
 
             return start.Continue(_ => online.Repeat()).Fmap(text => new string(text));
+        }
+
+        public static IParser<char, Unit> BlockComment2()
+        {
+            var start = Parsers.Sequence(Parsers.Single('/'), Parsers.Single('*')).Fmap(_ => Unit.Singleton);
+
+            return start.Continue(_ => BlockBody());
+        }
+
+        public static IParser<char, Unit> BlockBody()
+        {
+            var end = Parsers.Sequence(Parsers.Single('*'), Parsers.Single('/')).Fmap(_ => Unit.Singleton);
+
+            return Parsers.Peeks<char>(2)
+                .Continue<char, char[], Unit>(lead =>
+                {
+                    if (lead.Length == 2)
+                    {
+                        if (lead[0] == '*')
+                        {
+                            if (lead[1] == '/')
+                            {
+                                return end;
+                            }
+                        }
+
+                        if (lead[0] == '/')
+                        {
+                            if (lead[1] == '*')
+                            {
+                                return BlockComment();
+                            }
+                        }
+                    }
+
+                    return Parsers.Take<char>().Continue(_ => BlockBody());
+                });
         }
 
         public static IParser<char, Unit> BlockComment()

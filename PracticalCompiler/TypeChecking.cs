@@ -6,6 +6,27 @@ namespace PracticalCompiler
 {
     public static class TypeChecking
     { 
+        public static Term.Universe DefaultGenericType
+        {
+            get { return new Term.Universe(new Universes(0)); }
+        }
+
+        public static Classification<TypedTerm> EnsureType(
+            Func<string, Classification<dynamic>> doImport,
+            Environment<Classification<TypedTerm>> environment, 
+            Option<Classification<TypedTerm>> expected, 
+            Term term)
+        {
+            foreach (var type in expected.Each())
+            {
+                var typed = CheckType(doImport, environment, type, term);
+
+                return type.ShiftDown(typed);
+            }
+
+            return InferType(doImport, environment, term);
+        }
+
         public static Classification<TypedTerm> InferType(Func<string, Classification<dynamic>> doImport, Environment<Classification<TypedTerm>> environment, Term term)
         {
             switch (term.Tag)
@@ -23,24 +44,7 @@ namespace PracticalCompiler
                 {
                     var type = (Term.Quantified) term;
                         
-                    var domain = InferType(doImport, environment, type.Content.Left);
-
-                    var from = domain.Declared(type.Content.Identifier.Or("*"));
-
-                    environment = environment.Push(from);
-
-                    var range = InferType(doImport, environment, type.Content.Right);
-
-                    if (range.Type.Tag != TypedProductions.Universe)
-                    {
-                        throw new ArgumentException("Arrows relate types, not terms.");
-                    }
-
-                    return range.Fmap<TypedTerm, TypedTerm>(rangeTerm => 
-                        new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
-                            polarity: type.Content.Polarity,
-                            @from: from,
-                            to: rangeTerm))));
+                    return EnsureQuantifiedType(doImport, environment, new Option<Classification<TypedTerm>>.None(), type);
                 }
                 case Productions.Lambda:
                 {
@@ -201,6 +205,113 @@ namespace PracticalCompiler
             }
         }
 
+        private static Classification<TypedTerm> EnsureQuantifiedType(Func<string, Classification<dynamic>> doImport, Environment<Classification<TypedTerm>> environment, Option<Classification<TypedTerm>> expected, Term.Quantified type)
+        {
+            foreach (var context in expected.Each())
+            {
+                var universe = (TypedTerm.Universe) context.Term;
+            }
+            
+            foreach (var identifier in type.Content.Identifier.Each())
+            {
+                if (environment.Maps(identifier))
+                {
+                    throw new ArgumentException("Shadowing identifier: " + identifier);
+                }
+            }
+
+            Term left;
+            switch (type.Content.Left.Tag)
+            {
+                case TypeConstraints.None:
+
+                    left = DefaultGenericType;
+
+                    break;
+                case TypeConstraints.Type:
+                    var annotation = (TypeConstraint.Type) type.Content.Left;
+
+                    left = annotation.Content;
+                            
+                    break;
+                case TypeConstraints.Class:
+                    var @class = (TypeConstraint.Class) type.Content.Left;
+
+                    var @classed = InferType(doImport, environment, @class.Content);
+
+                    var signature = (TypedTerm.Type) @classed.Type;
+
+                    // class ~ (f : [_:domain:Univ v] -> Univ u : Univ (u+1))
+                    // this ~ [x:domain:Univ v] -> [_:f x:Univ u] -> to
+
+                    if (signature.Content.Tag == TypeStructs.Quantified)
+                    {
+                        var quantified = (TypeStruct.Quantified) signature.Content;
+
+                        if (quantified.Content.Polarity == Polarity.Forall)
+                        {
+                            if (quantified.Content.To.Tag != TypedProductions.Universe)
+                            {
+                                throw new ArgumentException("Type class must map to a type.");
+                            }
+
+                            var classUniverse = (TypedTerm.Universe) quantified.Content.To;
+
+                            var domain = quantified.Content.From.TypeOf();
+
+                            var identifier = type.Content.Identifier.Get();
+
+                            var from = domain.Declared(identifier);
+                                        
+                            environment = environment.Push(from);
+                                        
+                            var range = EnsureType(doImport, environment, expected, type.Content.Right);
+
+                            if (range.Type.Tag != TypedProductions.Universe)
+                            {
+                                throw new ArgumentException("Quantifiers relate types, not terms.");
+                            }
+                                    
+                            return range.Fmap<TypedTerm, TypedTerm>(rangeTerm =>
+                                new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
+                                    polarity: type.Content.Polarity,
+                                    @from: from,
+                                    to: new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
+                                            polarity: type.Content.Polarity, 
+                                            @from: new Classification<string>(
+                                                universe: classUniverse.Content,
+                                                type: new TypedTerm.Destructor(@classed, new Destructors.Arrow(new TypedApply(new TypedTerm.Variable(identifier)))), 
+                                                term: "*"), 
+                                            to: rangeTerm)))))));
+                        }
+                    }
+
+                    throw new ArgumentException("Type class must be a function.");
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+            {
+                var domain = InferType(doImport, environment, left);
+
+                var from = domain.Declared(type.Content.Identifier.Or("*"));
+
+                environment = environment.Push(from);
+
+                var range = EnsureType(doImport, environment, expected, type.Content.Right);
+
+                if (range.Type.Tag != TypedProductions.Universe)
+                {
+                    throw new ArgumentException("Quantifiers relate types, not terms.");
+                }
+
+                return range.Fmap<TypedTerm, TypedTerm>(rangeTerm =>
+                    new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
+                        polarity: type.Content.Polarity,
+                        @from: from,
+                        to: rangeTerm))));
+            }
+        }
+
         private static Classification<TypedTerm> InferMemberAccess(Func<string, Classification<dynamic>> doImport, Environment<Classification<TypedTerm>> environment, MemberAccess memberAccess)
         {
             var @operator = InferType(doImport, environment, memberAccess.Operator);
@@ -276,21 +387,8 @@ namespace PracticalCompiler
                 case Productions.Quantified:
                 {
                     var type = (Term.Quantified)term;
-                        
-                    var universe = (TypedTerm.Universe) expected.Term;
 
-                    var domain = InferType(doImport, environment, type.Content.Left);
-
-                    var from = domain.Declared(type.Content.Identifier.Or("*"));
-                        
-                    environment = environment.Push(from);
-
-                    var range = CheckType(doImport, environment, expected, type.Content.Right);
-
-                    return new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(
-                        polarity: type.Content.Polarity,
-                        @from: from,
-                        to: range)));
+                    return EnsureQuantifiedType(doImport, environment, expected.Some(), type).Term;
                 }
                 case Productions.Lambda:
                 {
