@@ -21,11 +21,13 @@ better import
         join : m -> m -> m;
     };
 
+    /*
     additive : monoid int;
     additive = new {
         null = 0;
         join = plus;
     };
+    */
 
     vector : type;
     vector = struct {
@@ -129,6 +131,11 @@ better import
     decidable = lambda a. union a (a -> bottom);
 
     /*
+    conat : type;
+    conat = [r] ~ union unit r;
+    */
+
+    /*
     
 
     (2, 3) : (int & int : type)
@@ -175,10 +182,10 @@ better import
     };
 
     square : int -> int;
-    square = lambda x. times x x;
+    square = lambda x. x * x;
 
     length : vector -> int;
-    length = lambda v. plus (square (v .x)) (square (v .y));
+    length = lambda v. square (v .x) + square (v .y);
 
     operation : type;
     operation = int -> int -> int;
@@ -191,11 +198,6 @@ better import
 
     //high .x
     lib .return (length origin)
-	//times (identity four) (identity (plus four one))
+	//identity four * identity (four + one)
 	//hello
-	
-	/*
-	list : type -> type; 
-	list = lambda (a:type). fix (lambda (r:type). Empty | Node (a, r));
-	*/
 	

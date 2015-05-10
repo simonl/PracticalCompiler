@@ -104,8 +104,13 @@ namespace PracticalCompiler
         {
             var arrows = Separated(PrefixedTerm(), new Token.Symbol(Symbols.Arrow))
                 .Fmap(components => components.ReduceRight((left, right) => MergeQuantifiedComponents(Polarity.Forall, left, right)));
-            
-            var packs = Separated(arrows, new Token.Symbol(Symbols.Ampersand))
+
+            var userOp = Operator().Fmap(_ => (Term)new Term.Variable(_));
+
+            var custom = Separated(arrows, userOp)
+                .Fmap(components => components.ReduceRight(MergeUserOperator));
+
+            var packs = Separated(custom, new Token.Symbol(Symbols.Ampersand))
                 .Fmap(components => components.ReduceRight((left, right) => MergeQuantifiedComponents(Polarity.Exists, left, right)));
 
             var annotations = Separated(packs, new Token.Symbol(Symbols.HasType))
@@ -117,6 +122,21 @@ namespace PracticalCompiler
             return pairs;
         }
 
+        private static T ReduceRight<O, T>(this Association<O, T> association, Func<O, T, T, T> merge)
+        {
+            var index = association.Operators.Length;
+            var element = association.Operands[index];
+
+            while (index != 0)
+            {
+                index--;
+
+                element = merge(association.Operators[index], association.Operands[index], element);
+            }
+
+            return element;
+        }
+
         private static Term MergeConsComponents(Term left, Term right)
         {
             return new Term.Cons(new ConsNode(left, right));
@@ -125,6 +145,36 @@ namespace PracticalCompiler
         private static Term MergeAnnotationComponents(Term term, Term type)
         {
             return new Term.Annotation(new Annotated(type, term));
+        }
+
+        private static Term MergeUserOperator(Term @operator, Term left, Term right)
+        {
+            if (left.Tag == Productions.Generic)
+            {
+                var generic = (Term.Generic) left;
+
+                switch (generic.Constraint.Tag)
+                {
+                    case TypeConstraints.None:
+
+                        return new Term.Apply(new FunctionApply(
+                            @operator: @operator,
+                            argument: new Term.Lambda(new LambdaTerm(new Declaration(new Option<Term>.Some(TypeChecking.DefaultGenericType), new Option<Term>.None(), generic.Identifier), right))));
+                    case TypeConstraints.Type:
+                        var annotation = (TypeConstraint.Type) generic.Constraint;
+
+                        return new Term.Apply(new FunctionApply(
+                            @operator: @operator, 
+                            argument: new Term.Lambda(new LambdaTerm(new Declaration(new Option<Term>.Some(annotation.Content), new Option<Term>.None(), generic.Identifier), right))));
+                    case TypeConstraints.Class:
+
+                        throw new ArgumentException("User defined generic operators cannot have class bounds.");
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+            }
+
+            return new Term.Apply(new FunctionApply(new Term.Apply(new FunctionApply(@operator, left)), @right));
         }
 
         private static Term MergeQuantifiedComponents(Polarity polarity, Term left, Term right)
@@ -225,6 +275,11 @@ namespace PracticalCompiler
         private static IParser<Token, Unit> Literal(Symbols symbol)
         {
             return Parsers.Single<Token>(new Token.Symbol(symbol));
+        }
+
+        public static IParser<Token, string> Operator()
+        {
+            return Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Operator).Fmap(token => ((PracticalCompiler.Token.Operator)token).Content);
         }
 
         public static IParser<Token, string> Identifier()
@@ -409,9 +464,23 @@ namespace PracticalCompiler
 
         public static IParser<S, T[]> Separated<S, T>(this IParser<S, T> parser, S separator)
         {
+            return Separated(parser, Parsers.Single(separator));
+        }
+
+        public static IParser<S, T[]> Separated<S, T>(this IParser<S, T> parser, IParser<S, Unit> separator)
+        {
             return parser
-                .Continue(first => parser.After(Parsers.Single(separator)).Repeat()
+                .Continue(first => parser.After(separator).Repeat()
                     .Continue(rest => Parsers.Returns<S, T[]>(ArrayOperations.Concatenate(new T[] { first }, rest))));
+        }
+
+        public static IParser<S, Association<O, T>> Separated<S, O, T>(this IParser<S, T> parser, IParser<S, O> separator)
+        {
+            return parser
+                .Continue(first => separator.AndThen(parser).Repeat()
+                    .Continue(rest => Parsers.Returns<S, Association<O, T>>(new Association<O, T>(
+                        @operators: rest.Fmap(_ => _.Item1),
+                        @operands: ArrayOperations.Concatenate(new T[] { first }, rest.Fmap(_ => _.Item2))))));
         }
 
         //

@@ -94,8 +94,8 @@ namespace PracticalCompiler
             var environment = (null as Environment<Classification<dynamic>>)
                 .Push("string", BaseType.ShiftDown<dynamic>(null))
                 .Push("int", BaseType.ShiftDown<dynamic>(null))
-                .Push("plus", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x + y))))
-                .Push("times", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x * y))));
+                .Push("+", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x + y))))
+                .Push("*", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x * y))));
 
             var prelude = new string[]
             {

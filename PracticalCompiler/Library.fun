@@ -2,9 +2,9 @@
 	return : int -> int;
 	return = lambda x. x;
 
-	two = plus 1 1;
+	two = 1 + 1;
 
-	four = times 2 2;
+	four = 2 * 2;
 
 	new {
 		return = return;

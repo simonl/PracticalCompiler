@@ -49,4 +49,21 @@ namespace PracticalCompiler
             Definition = definition;
         }
     }
+
+    public sealed class Association<O, T>
+    {
+        public readonly O[] Operators;
+        public readonly T[] Operands;
+
+        public Association(O[] operators, T[] operands)
+        {
+            if (operators.Length + 1 != operands.Length)
+            {
+                throw new ArgumentException("There must be an operator between each operands.");
+            }
+
+            Operators = operators;
+            Operands = operands;
+        }
+    }
 }
