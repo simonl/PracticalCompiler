@@ -21,13 +21,11 @@ better import
         join : m -> m -> m;
     };
 
-    /*
     additive : monoid int;
     additive = new {
         null = 0;
-        join = plus;
+        join = (+);
     };
-    */
 
     vector : type;
     vector = struct {
@@ -182,7 +180,7 @@ better import
     };
 
     square : int -> int;
-    square = lambda x. x * x;
+    square = lambda x. (*) x x;
 
     length : vector -> int;
     length = lambda v. square (v .x) + square (v .y);

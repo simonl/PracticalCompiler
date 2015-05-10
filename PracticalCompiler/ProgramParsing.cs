@@ -228,6 +228,7 @@ namespace PracticalCompiler
             var term = Parsers.Alternatives<Token, Term>(
                 Generic(),
                 Literal(Symbols.Type).Fmap(_ => (Term)new Term.Universe(new Universes(0))),
+                OperatorReference(),
                 Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
                 NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
                 ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
@@ -237,6 +238,11 @@ namespace PracticalCompiler
 
             return term;
         }
+
+        private static IParser<Token, Term> OperatorReference()
+        {
+            return Operator().Between(Brackets.Round).Fmap(identifier => (Term) new Term.Variable(identifier));
+        } 
 
         private static IParser<Token, string> StructAccess()
         {
