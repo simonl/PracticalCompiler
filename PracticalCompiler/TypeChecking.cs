@@ -474,7 +474,7 @@ namespace PracticalCompiler
 
                         if (quantifier.Term != definition.Identifier)
                         {
-                            throw new ArgumentException("Mismatch between signature and module member name: " + index);
+                            throw new ArgumentException("Mismatch between signature and module member name: " + quantifier.Term);
                         }
 
                         var memberType = quantifier.TypeOf().Normalized(environment);

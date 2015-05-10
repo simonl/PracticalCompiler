@@ -87,13 +87,17 @@ namespace PracticalCompiler
 
         public static void InteractiveMain(string[] args)
         {
+            var boolType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("bool"));
             var intType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int"));
             var stringType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string"));
             var operation = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared("*"), new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared("*"), intType.Term)))))));
 
             var environment = (null as Environment<Classification<dynamic>>)
+                .Push("bool", BaseType.ShiftDown<dynamic>(null))
                 .Push("string", BaseType.ShiftDown<dynamic>(null))
                 .Push("int", BaseType.ShiftDown<dynamic>(null))
+                .Push("true", boolType.ShiftDown<dynamic>(true))
+                .Push("false", boolType.ShiftDown<dynamic>(false))
                 .Push("+", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x + y))))
                 .Push("*", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x * y))));
 

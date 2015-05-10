@@ -228,7 +228,6 @@ namespace PracticalCompiler
             var term = Parsers.Alternatives<Token, Term>(
                 Generic(),
                 Literal(Symbols.Type).Fmap(_ => (Term)new Term.Universe(new Universes(0))),
-                OperatorReference(),
                 Identifier().Fmap(identifier => (Term)new Term.Variable(identifier)),
                 NumberLiteral().Fmap(number => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int")).ShiftDown<dynamic>(number))),
                 ConstantString().Fmap(text => (Term)new Term.Constant(Program.BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string")).ShiftDown<dynamic>(text))),
@@ -239,9 +238,9 @@ namespace PracticalCompiler
             return term;
         }
 
-        private static IParser<Token, Term> OperatorReference()
+        private static IParser<Token, string> OperatorReference()
         {
-            return Operator().Between(Brackets.Round).Fmap(identifier => (Term) new Term.Variable(identifier));
+            return Operator().Between(Brackets.Round);
         } 
 
         private static IParser<Token, string> StructAccess()
@@ -282,7 +281,7 @@ namespace PracticalCompiler
         {
             return Parsers.Single<Token>(new Token.Symbol(symbol));
         }
-
+        
         public static IParser<Token, string> Operator()
         {
             return Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Operator).Fmap(token => ((PracticalCompiler.Token.Operator)token).Content);
@@ -290,7 +289,10 @@ namespace PracticalCompiler
 
         public static IParser<Token, string> Identifier()
         {
-            return Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Identifier).Fmap(token => ((PracticalCompiler.Token.Identifier)token).Content);
+            var identifier = Parsers.Take<Token>().Satisfies(token => token.Tag == Tokens.Identifier).Fmap(token => ((PracticalCompiler.Token.Identifier)token).Content);
+            var @operator = OperatorReference();
+
+            return Parsers.Alternatives(identifier, @operator);
         }
 
         public static IParser<Token, uint> NumberLiteral()

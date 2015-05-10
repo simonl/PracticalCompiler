@@ -18,13 +18,13 @@ better import
     monoid : type -> type;
     monoid = lambda m. struct {
         null : m;
-        join : m -> m -> m;
+        (<>) : m -> m -> m;
     };
 
     additive : monoid int;
     additive = new {
         null = 0;
-        join = (+);
+        (<>) = (+);
     };
 
     vector : type;
@@ -103,7 +103,7 @@ better import
 
     monadic : (type -> type) -> type;
     monadic = lambda m. struct { 
-        continue : [a] -> m a -> async m a;
+        (>>=) : [a] -> m a -> async m a;
     };
 
     pair : type -> type -> type;
@@ -128,10 +128,11 @@ better import
     decidable : type -> type;
     decidable = lambda a. union a (a -> bottom);
 
-    /*
+    (~) : quantifier;
+    (~) = reducer;
+
     conat : type;
     conat = [r] ~ union unit r;
-    */
 
     /*
     
@@ -149,11 +150,6 @@ better import
         cast : [c:a -> type] -> c x -> c y;
     };
     
-    equality : type -> type;
-    equality = lambda a. struct {
-        (=?) : [x:a] -> [y:a] -> decidable ((==) a x y);
-    };
-
 	identity : [a] -> a -> a;
 	identity = lambda a. lambda x. x;
 
@@ -163,21 +159,24 @@ better import
 	};
 */
 
-    pair : type -> type -> type;
-    pair = lambda a. lambda b. struct {
+    (<,>) : type -> type -> type;
+    (<,>) = lambda a. lambda b. struct {
         first : a;
         second : b;
     };
-
-    equatable : type -> type;
-    equatable = lambda a. struct {
-        AreEqual : pair a a -> int;
+    
+    //equality : type -> type;
+    equality = lambda [a]. struct {
+        (=?) : (a <,> a) -> bool;
     };
-
+    
     origin = new vector {   
         x = lib .two;
         y = lib .four;
     };
+    
+    (|>) : int -> (int -> int) -> int;
+    (|>) = lambda x. lambda f. f x;
 
     square : int -> int;
     square = lambda x. (*) x x;
@@ -195,7 +194,8 @@ better import
     hello = "Hello, World!";
 
     //high .x
-    lib .return (length origin)
-	//identity four * identity (four + one)
+    length origin |> lib .return
+	
+    //identity four * identity (four + one)
 	//hello
 	
