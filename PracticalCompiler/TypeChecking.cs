@@ -163,6 +163,11 @@ namespace PracticalCompiler
                 case Productions.LetBinding:
                 {
                     var letBinding = (Term.LetBinding)term;
+                        
+                    if (environment.Maps(letBinding.Content.Identifier))
+                    {
+                        throw new ArgumentException("Shadowing identifier: " + letBinding.Content.Identifier);
+                    }
 
                     var defined = InferLet(doImport, environment, letBinding.Content);
 
@@ -535,6 +540,11 @@ namespace PracticalCompiler
                 case Productions.LetBinding:
                 {
                     var letBinding = (Term.LetBinding) term;
+                        
+                    if (environment.Maps(letBinding.Content.Identifier))
+                    {
+                        throw new ArgumentException("Shadowing identifier: " + letBinding.Content.Identifier);
+                    }
 
                     var defined = InferLet(doImport, environment, letBinding.Content);
 
