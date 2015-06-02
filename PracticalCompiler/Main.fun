@@ -143,7 +143,7 @@ better import
     concatenative : monoid string;
     concatenative = new {
         null = "";
-        (<>) x y = "";
+        (<>) x y = x ++ y;
     };
     
     collection : type -> type;

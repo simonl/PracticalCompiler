@@ -91,6 +91,7 @@ namespace PracticalCompiler
             var intType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("int"));
             var stringType = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Variable("string"));
             var operation = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared("*"), new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, intType.Declared("*"), intType.Term)))))));
+            var stringOperation = BaseType.ShiftDown<TypedTerm>(new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, stringType.Declared("*"), new TypedTerm.Type(new TypeStruct.Quantified(new TypedQuantifier(Polarity.Forall, stringType.Declared("*"), stringType.Term)))))));
 
             var environment = (null as Environment<Classification<dynamic>>)
                 .Push("bool", BaseType.ShiftDown<dynamic>(null))
@@ -98,6 +99,7 @@ namespace PracticalCompiler
                 .Push("int", BaseType.ShiftDown<dynamic>(null))
                 .Push("true", boolType.ShiftDown<dynamic>(true))
                 .Push("false", boolType.ShiftDown<dynamic>(false))
+                .Push("++", stringOperation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x + y))))
                 .Push("+", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x + y))))
                 .Push("-", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x - y))))
                 .Push("*", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x * y))))
