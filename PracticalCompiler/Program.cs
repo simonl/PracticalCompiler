@@ -99,7 +99,9 @@ namespace PracticalCompiler
                 .Push("true", boolType.ShiftDown<dynamic>(true))
                 .Push("false", boolType.ShiftDown<dynamic>(false))
                 .Push("+", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x + y))))
-                .Push("*", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x * y))));
+                .Push("-", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x - y))))
+                .Push("*", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => x * y))))
+                .Push("/", operation.ShiftDown<dynamic>(new Func<dynamic, dynamic>(x => new Func<dynamic, dynamic>(y => (double)x / y))));
 
             var prelude = new string[]
             {
