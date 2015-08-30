@@ -85,10 +85,10 @@ better import
     identity [a] (~) = [x:a] -> (x ~ x);
 
     inversion : [a <: relation] -> type;
-    inversion [a] (~) = [x:a] -> [y:a] -> (x ~ y) -> (y ~ x);
+    inversion [a] (~) = [x:a, y:a] -> (x ~ y) -> (y ~ x);
 
     combination : [a <: relation] -> type;
-    combination [a] (~) = [x:a] -> [y:a] -> [z:a] -> (x ~ y) -> (y ~ z) -> (x ~ z);
+    combination [a] (~) = [x:a, y:a, z:a] -> (x ~ y) -> (y ~ z) -> (x ~ z);
 
     equivalence : [a <: relation] -> type;
     equivalence [a] (~) = struct {
@@ -98,11 +98,10 @@ better import
     };
 
     associative : [a <: relation] -> operation a -> type;
-    associative a (~) (<>) = [x:a] -> [y:a] -> [z:a] -> (((x <> y) <> z) ~ (x <> (y <> z)));
+    associative a (~) (<>) = [x:a, y:a, z:a] -> (((x <> y) <> z) ~ (x <> (y <> z)));
 
-    // associative : [a] -> [(~):relation a] -> combination a (~) -> type;
-    // associative a (~) (<>) = [w:a] -> [x:a] -> [y:a] -> [z:a] -> [p:w ~ x] -> [q:x ~ y] -> [r:y ~ z] -> ((<>) w y z ((<>) w x y p q) r) `== (w ~ z)` ((<>) w x z p ((<>) x y z q r));
-
+    // associative : [a] -> [(~) <: combination a] -> type;
+    // associative a (~) (<>) = [w:a, x:a, y:a, z:a] -> [p:w ~ x, q:x ~ y, r:y ~ z] -> ((<>) w y z ((<>) w x y p q) r) `== (w ~ z)` ((<>) w x z p ((<>) x y z q r));
     groupoid : [a <: relation] -> type;
     groupoid [a] (~) = struct {
         null : identity a (~);
@@ -111,8 +110,8 @@ better import
 
     /*
         inverse_of_null_is_null : [x:a] -> inverse x x (null x) == null x
-        inverse_twice_is_noop : [x:a] -> [y:a] -> [p:x ~ y] -> inverse y x (inverse x y p) == p;
-        inverse_flips_concat_arguments : [x:a] -> [y:a] -> [z:a] -> [p:x ~ y] -> [q:y ~ z] -> inverse x z ((<>) x y z p q) == (<>) z y x  (inverse y z q) (inverse x y p)
+        inverse_twice_is_noop : [x:a, y:a] -> [p:x ~ y] -> inverse y x (inverse x y p) == p;
+        inverse_flips_concat_arguments : [x:a, y:a, z:a] -> [p:x ~ y, q:y ~ z] -> inverse x z ((<>) x y z p q) == (<>) z y x  (inverse y z q) (inverse x y p)
         concat_is_associative : associative a (~) (<>);
     */
     };
@@ -192,7 +191,7 @@ better import
 
     functor : (type -> type) -> type;
     functor f = struct {
-        map : [a] -> [b] -> (a -> b) -> (f a -> f b);
+        map : [a, b] -> (a -> b) -> (f a -> f b);
     };
 
     inductive : quantifier -> type;

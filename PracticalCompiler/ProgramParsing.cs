@@ -131,7 +131,7 @@ namespace PracticalCompiler
             return parameters.ReduceRight(definition, (param, body) => new Term.Lambda(new LambdaTerm(param, body)));
         }
 
-        public static IParser<Token, Term> Expression()
+        public static IParser<Token, Term> Expression(bool @short = false)
         {
             var arrows = Separated(PrefixedTerm(), new Token.Symbol(Symbols.Arrow))
                 .Fmap(components => components.ReduceRight((left, right) => MergeQuantifiedComponents(Polarity.Forall, left, right)));
@@ -146,7 +146,12 @@ namespace PracticalCompiler
 
             var annotations = Separated(packs, new Token.Symbol(Symbols.HasType))
                 .Fmap(components => components.ReduceRight(MergeAnnotationComponents));
-            
+
+            if (@short)
+            {
+                return annotations;
+            }
+
             var pairs = Separated(annotations, new Token.Symbol(Symbols.Comma))
                 .Fmap(components => components.ReduceRight(MergeConsComponents));
 
@@ -184,24 +189,27 @@ namespace PracticalCompiler
             {
                 var generic = (Term.Generic) left;
 
-                switch (generic.Content.Constraint.Tag)
+                return generic.Content.ReduceRight(right, (decl, term) =>
                 {
-                    case TypeConstraints.None:
+                    switch (decl.Constraint.Tag)
+                    {
+                        case TypeConstraints.None:
 
-                        return new Term.Apply(new FunctionApply(
-                            @operator: @operator,
-                            argument: new Term.Lambda(new LambdaTerm(new Declaration(new TypeConstraint.Type(TypeChecking.DefaultGenericType), generic.Content.Identifier), right))));
-                    case TypeConstraints.Type:
+                            return new Term.Apply(new FunctionApply(
+                                @operator: @operator,
+                                argument: new Term.Lambda(new LambdaTerm(new Declaration(new TypeConstraint.Type(TypeChecking.DefaultGenericType), decl.Identifier), term))));
+                        case TypeConstraints.Type:
 
-                        return new Term.Apply(new FunctionApply(
-                            @operator: @operator, 
-                            argument: new Term.Lambda(new LambdaTerm(generic.Content, right))));
-                    case TypeConstraints.Class:
+                            return new Term.Apply(new FunctionApply(
+                                @operator: @operator, 
+                                argument: new Term.Lambda(new LambdaTerm(decl, term))));
+                        case TypeConstraints.Class:
 
-                        throw new ArgumentException("User defined generic operators cannot have class bounds.");
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
+                            throw new ArgumentException("User defined generic operators cannot have class bounds.");
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+                });
             }
 
             return new Term.Apply(new FunctionApply(new Term.Apply(new FunctionApply(@operator, left)), @right));
@@ -213,9 +221,13 @@ namespace PracticalCompiler
             {
                 var generic = (Term.Generic) left;
 
-                var identifier = generic.Content.Identifier.Some();
+                return generic.Content.ReduceRight(right, (decl, term) =>
+                {
+                    var identifier = decl.Identifier.Some();
 
-                return new Term.Quantified(new QuantifiedType(polarity, generic.Content.Constraint, identifier, right));
+                    return
+                        new Term.Quantified(new QuantifiedType(polarity, decl.Constraint, identifier, term));
+                });
             }
 
             return new Term.Quantified(new QuantifiedType(polarity, new TypeConstraint.Type(left), new Option<string>.None(), right));
@@ -337,15 +349,19 @@ namespace PracticalCompiler
 
         public static IParser<Token, Term> Generic()
         {
-            var declaration = Literal(Symbols.HasType).Continue(_ => Expression()).Fmap(_ => (TypeConstraint)new TypeConstraint.Type(_));
+            var declaration = Literal(Symbols.HasType).Continue(_ => Expression(@short: true)).Fmap(_ => (TypeConstraint)new TypeConstraint.Type(_));
 
-            var classification = Literal(Symbols.SubType).Continue(_ => Expression()).Fmap(_ => (TypeConstraint)new TypeConstraint.Class(_));
+            var classification = Literal(Symbols.SubType).Continue(_ => Expression(@short: true)).Fmap(_ => (TypeConstraint)new TypeConstraint.Class(_));
 
             var none = Parsers.Returns<Token, TypeConstraint>(new TypeConstraint.None());
 
-            var generic = Identifier()
+            var single = Identifier()
                 .Continue(identifier => Parsers.Alternatives(declaration, classification, none)
-                    .Continue(constraint => Parsers.Returns<Token, Term>(new Term.Generic(new Declaration(constraint, identifier)))));
+                    .Continue(constraint => Parsers.Returns<Token, Declaration>(new Declaration(constraint, identifier))));
+
+            var generic = single
+                .Separated(new Token.Symbol(Symbols.Comma))
+                .Fmap(_ => (Term)new Term.Generic(_));
 
             return generic.Between(Brackets.Square);
         }
@@ -368,7 +384,9 @@ namespace PracticalCompiler
                 {
                     var generic = (Term.Generic) term;
 
-                    switch (generic.Content.Constraint.Tag)
+                    var decl = generic.Content[0];
+
+                    switch (decl.Constraint.Tag)
                     {
                         case TypeConstraints.None:
 
@@ -376,7 +394,7 @@ namespace PracticalCompiler
 
                             break;
                         case TypeConstraints.Type:
-                            var annotation = (TypeConstraint.Type) generic.Content.Constraint;
+                            var annotation = (TypeConstraint.Type) decl.Constraint;
 
                             type = new TypeConstraint.Type(annotation.Content);
 
@@ -388,7 +406,7 @@ namespace PracticalCompiler
                             throw new ArgumentOutOfRangeException();
                     }
 
-                    term = new Term.Variable(generic.Content.Identifier);
+                    term = new Term.Variable(decl.Identifier);
                 }
                 
                 if (term.Tag == Productions.Annotation)

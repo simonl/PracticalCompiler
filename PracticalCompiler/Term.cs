@@ -242,9 +242,9 @@ namespace PracticalCompiler
 
         public sealed class Generic : Term
         {
-            public readonly Declaration Content;
+            public readonly Declaration[] Content;
 
-            public Generic(Declaration content)
+            public Generic(Declaration[] content)
                 : base(Productions.Generic)
             {
                 Content = content;
