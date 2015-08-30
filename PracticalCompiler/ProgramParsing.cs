@@ -230,7 +230,24 @@ namespace PracticalCompiler
                 });
             }
 
-            return new Term.Quantified(new QuantifiedType(polarity, new TypeConstraint.Type(left), new Option<string>.None(), right));
+            return Uncons(left, right, (decl, term) =>
+            {
+                return new Term.Quantified(new QuantifiedType(polarity, new TypeConstraint.Type(decl), new Option<string>.None(), term));
+            });
+        }
+
+        private static Term Uncons(Term left, Term right, Func<Term, Term, Term> apply)
+        {
+            if (left.Tag == Productions.Cons)
+            {
+                var cons = (Term.Cons) left;
+
+                right = Uncons(cons.Content.Right, right, apply);
+
+                return apply(cons.Content.Left, right);
+            }
+
+            return apply(left, right);
         }
 
         public static IParser<Token, Term> PrefixedTerm()

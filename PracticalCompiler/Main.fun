@@ -65,16 +65,21 @@ better import
     lambda [fix:quantifier]. lambda [least:inductive fix]. least .fold listF xs
 
 
+    a & b & c & d
+    (a, b c) & d
+
+    [x:a] & [y:b] & [z:c] & d
+    [x:a, y:b, z:c] & d
 
     */
 
     kind = typeof type;
     
     operation : type -> type;
-    operation [a] = a -> a -> a;
+    operation [a] = (a, a) -> a;
 
     relation : type -> kind;
-    relation [a] = a -> a -> type;
+    relation [a] = (a, a) -> type;
     
     (==) : [a] -> relation a;
     (==) a x y = struct {
@@ -88,7 +93,7 @@ better import
     inversion [a] (~) = [x:a, y:a] -> (x ~ y) -> (y ~ x);
 
     combination : [a <: relation] -> type;
-    combination [a] (~) = [x:a, y:a, z:a] -> (x ~ y) -> (y ~ z) -> (x ~ z);
+    combination [a] (~) = [x:a, y:a, z:a] -> (x ~ y, y ~ z) -> (x ~ z);
 
     equivalence : [a <: relation] -> type;
     equivalence [a] (~) = struct {
@@ -119,7 +124,7 @@ better import
     monoid : type -> type;
     monoid m = struct {
         null : m;
-        (<>) : m -> m -> m;
+        (<>) : (m, m) -> m;
     /*
         left_id : [x:m] -> (null <> x) == x;
         right_id : [x:m] -> (x <> null) == x;
@@ -234,7 +239,7 @@ better import
 
     pair : type -> type -> type;
     pair a b = struct { 
-        unpack : [r] -> (a -> b -> r) -> r;
+        unpack : [r] -> ((a, b) -> r) -> r;
     };
  
     continuation : type -> type -> type -> type;
@@ -261,7 +266,7 @@ better import
     conat = [r] ~ union unit r;
 
     boolean : type;
-    boolean = [a] -> a -> a -> a;
+    boolean = [a] -> (a, a) -> a;
     
     first : boolean;
     first [a] then else = then;
@@ -298,7 +303,7 @@ better import
     
     //equality : type -> type;
     equality [a] = struct {
-        (=?) : (a <,> a) -> bool;
+        (=?) : (a, a) -> bool;
     };
     
     origin = new vector {   
@@ -306,7 +311,7 @@ better import
         y = lib .four;
     };
     
-    (|>) : int -> (int -> int) -> int;
+    (|>) : (int, int -> int) -> int;
     (|>) x f = f x;
 
     square : int -> int;
