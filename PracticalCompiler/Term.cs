@@ -133,14 +133,12 @@ namespace PracticalCompiler
 
     public sealed class Declaration
     {
-        public readonly Option<Term> Type;
-        public readonly Option<Term> Class; 
+        public readonly TypeConstraint Constraint;
         public readonly string Identifier;
 
-        public Declaration(Option<Term> type, Option<Term> @class, string identifier)
+        public Declaration(TypeConstraint constraint, string identifier)
         {
-            Type = type;
-            Class = @class;
+            Constraint = constraint;
             Identifier = identifier;
         }
     }
@@ -244,14 +242,12 @@ namespace PracticalCompiler
 
         public sealed class Generic : Term
         {
-            public readonly string Identifier;
-            public readonly TypeConstraint Constraint;
+            public readonly Declaration Content;
 
-            public Generic(string identifier, TypeConstraint constraint)
+            public Generic(Declaration content)
                 : base(Productions.Generic)
             {
-                Identifier = identifier;
-                Constraint = constraint;
+                Content = content;
             }
         }
 

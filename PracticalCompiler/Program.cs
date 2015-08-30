@@ -243,6 +243,28 @@ namespace PracticalCompiler
                 universe: new Universes(rank + 2),
                 type: new TypedTerm.Universe(new Universes(rank + 1)),
                 term: new TypedTerm.Universe(new Universes(rank)));
+        }
+
+        public static IEnumerable<Term> Each(this TypeConstraint constraint)
+        {
+            switch (constraint.Tag)
+            {
+                case TypeConstraints.None:
+                    var none = (TypeConstraint.None) constraint;
+
+                    yield break;
+                case TypeConstraints.Type:
+                    var type = (TypeConstraint.Type) constraint;
+
+                    yield return type.Content;
+                    yield break;
+                case TypeConstraints.Class:
+                    var @class = (TypeConstraint.Class) constraint;
+
+                    yield break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         } 
         
         public static Environment<Classification<TypedTerm>> Push(this Environment<Classification<TypedTerm>> environment, Classification<string> binding)

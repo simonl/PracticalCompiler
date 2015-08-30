@@ -57,7 +57,7 @@ namespace PracticalCompiler
                         throw new ArgumentException("Shadowing identifier: " + identifier);
                     }
 
-                    foreach (var type in constructor.Content.Parameter.Type.Each())
+                    foreach (var type in constructor.Content.Parameter.Constraint.Each())
                     {
                         var annotation = InferType(doImport, environment, type).Normalized(environment);
 
@@ -414,7 +414,7 @@ namespace PracticalCompiler
                         throw new ArgumentException("Shadowing identifier: " + identifier);
                     }
 
-                    foreach (var declared in constructor.Content.Parameter.Type.Each())
+                    foreach (var declared in constructor.Content.Parameter.Constraint.Each())
                     {
                         var annotation = InferType(doImport, environment, declared).Normalized(environment);
 

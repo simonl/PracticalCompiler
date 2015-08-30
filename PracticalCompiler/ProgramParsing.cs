@@ -184,19 +184,18 @@ namespace PracticalCompiler
             {
                 var generic = (Term.Generic) left;
 
-                switch (generic.Constraint.Tag)
+                switch (generic.Content.Constraint.Tag)
                 {
                     case TypeConstraints.None:
 
                         return new Term.Apply(new FunctionApply(
                             @operator: @operator,
-                            argument: new Term.Lambda(new LambdaTerm(new Declaration(new Option<Term>.Some(TypeChecking.DefaultGenericType), new Option<Term>.None(), generic.Identifier), right))));
+                            argument: new Term.Lambda(new LambdaTerm(new Declaration(new TypeConstraint.Type(TypeChecking.DefaultGenericType), generic.Content.Identifier), right))));
                     case TypeConstraints.Type:
-                        var annotation = (TypeConstraint.Type) generic.Constraint;
 
                         return new Term.Apply(new FunctionApply(
                             @operator: @operator, 
-                            argument: new Term.Lambda(new LambdaTerm(new Declaration(new Option<Term>.Some(annotation.Content), new Option<Term>.None(), generic.Identifier), right))));
+                            argument: new Term.Lambda(new LambdaTerm(generic.Content, right))));
                     case TypeConstraints.Class:
 
                         throw new ArgumentException("User defined generic operators cannot have class bounds.");
@@ -214,9 +213,9 @@ namespace PracticalCompiler
             {
                 var generic = (Term.Generic) left;
 
-                var identifier = generic.Identifier.Some();
+                var identifier = generic.Content.Identifier.Some();
 
-                return new Term.Quantified(new QuantifiedType(polarity, generic.Constraint, identifier, right));
+                return new Term.Quantified(new QuantifiedType(polarity, generic.Content.Constraint, identifier, right));
             }
 
             return new Term.Quantified(new QuantifiedType(polarity, new TypeConstraint.Type(left), new Option<string>.None(), right));
@@ -346,7 +345,7 @@ namespace PracticalCompiler
 
             var generic = Identifier()
                 .Continue(identifier => Parsers.Alternatives(declaration, classification, none)
-                    .Continue(constraint => Parsers.Returns<Token, Term>(new Term.Generic(identifier, constraint))));
+                    .Continue(constraint => Parsers.Returns<Token, Term>(new Term.Generic(new Declaration(constraint, identifier)))));
 
             return generic.Between(Brackets.Square);
         }
@@ -364,22 +363,22 @@ namespace PracticalCompiler
         {
             return SimpleTerm().Continue(term =>
             {
-                Option<Term> type = new Option<Term>.None();
+                TypeConstraint type = new TypeConstraint.None();
                 if (term.Tag == Productions.Generic)
                 {
                     var generic = (Term.Generic) term;
 
-                    switch (generic.Constraint.Tag)
+                    switch (generic.Content.Constraint.Tag)
                     {
                         case TypeConstraints.None:
 
-                            type = new Option<Term>.Some(TypeChecking.DefaultGenericType);
+                            type = new TypeConstraint.Type(TypeChecking.DefaultGenericType);
 
                             break;
                         case TypeConstraints.Type:
-                            var annotation = (TypeConstraint.Type) generic.Constraint;
+                            var annotation = (TypeConstraint.Type) generic.Content.Constraint;
 
-                            type = new Option<Term>.Some(annotation.Content);
+                            type = new TypeConstraint.Type(annotation.Content);
 
                             break;
                         case TypeConstraints.Class:
@@ -389,14 +388,14 @@ namespace PracticalCompiler
                             throw new ArgumentOutOfRangeException();
                     }
 
-                    term = new Term.Variable(generic.Identifier);
+                    term = new Term.Variable(generic.Content.Identifier);
                 }
                 
                 if (term.Tag == Productions.Annotation)
                 {
                     var annotation = (Term.Annotation) term;
 
-                    type = new Option<Term>.Some(annotation.Content.Type);
+                    type = new TypeConstraint.Type(annotation.Content.Type);
 
                     term = annotation.Content.Term;
                 }
@@ -405,7 +404,7 @@ namespace PracticalCompiler
                 {
                     var variable = (Term.Variable) term;
 
-                    return Parsers.Returns<Token, Declaration>(new Declaration(type, new Option<Term>.None(), variable.Content));
+                    return Parsers.Returns<Token, Declaration>(new Declaration(type, variable.Content));
                 }
 
                 return Parsers.Fails<Token, Declaration>("Parameter should be a variable declaration.");
