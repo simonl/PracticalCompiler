@@ -78,6 +78,9 @@
     <Compile Include="Untyped\UntypedTerm.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Category.fun">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Include="Library.fun">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
