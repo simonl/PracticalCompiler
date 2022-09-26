@@ -14,21 +14,14 @@ Universes are to types as types are to terms. The base universe is usually calle
 Example syntax:
 
 relation : type -> type;
-
 relation [a] = (a, a) -> type;
 
 (==) : [a] -> relation a;
-
 (==) a [x, y] = struct {
-
   transport : [P:a -> type] -> P x -> P y;
-  
 };
 
 reflexive : [a] -> [x:a] -> (x == x);
-
 reflexive a x = new {
-
   transport P xs = xs;
-
 };
