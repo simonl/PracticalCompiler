@@ -10,3 +10,18 @@ Universes are to types as types are to terms. The base universe is usually calle
 
   The level of terms is further divided in two categories: Constructor, Destructor.
   Each type generates a single constructor and destructor. For example, function types generate the constructor 'lambda' and destructor 'function application'. 
+
+Example syntax:
+
+relation : type -> type;
+relation [a] = (a, a) -> type;
+
+(==) : [a] -> relation a;
+(==) a [x, y] = struct {
+  transport : [P:a -> type] -> P x -> P y;
+};
+
+reflexive : [a] -> [x:a] -> (x == x);
+reflexive a x = new {
+  transport P xs = xs;
+};
